@@ -10,5 +10,4 @@ fi
 cd Mr-SyD-OrG/Forw
 pip3 install -U -r requirements.txt
 echo "Starting Bot...."
-python3 -m main
-#python3 main.py
+python3 main.py
