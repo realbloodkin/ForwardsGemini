@@ -13,14 +13,9 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMedi
 SYD = ["https://files.catbox.moe/mq4f9j.jpg", "https://files.catbox.moe/mq4f9j.jpg"]
 
 main_buttons = [[
-        InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker'),
-        InlineKeyboardButton('⦿ Sᴜᴩᴩᴏʀᴛ ⦿', url='https://t.me/Mod_Moviez_X')
-        ],[
         InlineKeyboardButton('⊛ Hᴇʟᴩ ⊛', callback_data='help'),
         InlineKeyboardButton('✧ Aʙᴏᴜᴛ ✧', callback_data='about')
-        ],[
-        InlineKeyboardButton('⚝ Mᴏʀᴇ Bᴏᴛꜱ ⚝', url='https://t.me/Bot_Cracker/17')
-        ]]
+]]
 
 
 
