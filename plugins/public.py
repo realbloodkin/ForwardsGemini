@@ -56,7 +56,7 @@ async def run(bot, message):
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+0Zi1FC4ulo8zYzVl"
+                    text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/norFederation"
 
                 )
             ]
