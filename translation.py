@@ -42,8 +42,8 @@ class Translation(object):
 <b>⋉ Lᴀɴɢᴜᴀɢᴇ :</b> <a>English</a>
 <b>⋉ Lɪʙʀᴀʀʏ :</b> <a>Pyrogram</a>
 <b>⋉ Sᴇʀᴠᴇʀ :</b> <a>Koyeb</a>
-<b>⋉ Cʜᴀɴɴᴇʟ :</b> <a href='https://t.me/norFederation'></a>
-<b>⋉ Dᴇᴠᴇʟᴏᴩᴇʀ :</b> <a href='https://t.me/partDevil'>ᴍʀ. ꜱʏᴅ 🌧️</a>"""
+<b>⋉ Cʜᴀɴɴᴇʟ :</b> <a href='https://t.me/norFederation'>norFed</a>
+<b>⋉ Dᴇᴠᴇʟᴏᴩᴇʀ :</b> <a href='https://t.me/partDevil'>partDevil</a>"""
   
   STATUS_TXT = """<b><u>Bᴏᴛ Sᴛᴀᴛᴜꜱ:</u></b>
   
