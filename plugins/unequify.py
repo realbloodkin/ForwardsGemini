@@ -1,8 +1,3 @@
-# MrSyD 🧩
-# By @Bot_Cracker 🎋
-# Developer @syd_xyz
-
-
 
 from pyrogram.errors import UserNotParticipant
 import re, asyncio
@@ -18,8 +13,8 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 CLIENT = CLIENT()
 COMPLETED_BTN = InlineKeyboardMarkup(
    [
-      [InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker')],
-      [InlineKeyboardButton('⦿ Sᴜᴩᴩᴏʀᴛ ⦿', url='https://t.me/Mod_Moviez_X')]
+      [InlineKeyboardButton('Placeholder', url='https://t.me/partDevil')],
+      [InlineKeyboardButton('Placeholder', url='https://t.me/partDevil')]
    ]
 )
 
@@ -58,7 +53,7 @@ async def unequify(client, message):
        buttons.append(
            [
                InlineKeyboardButton(
-                   text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+0Zi1FC4ulo8zYzVl"
+                   text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/norFederation"
 
                )
            ]
@@ -141,11 +136,3 @@ async def unequify(client, message):
    await bot.stop()
    
 
-
-
-
-
-
-# MrSyD 🧩
-# By @Bot_Cracker 🎋
-# Developer @syd_xyz
