@@ -9,8 +9,8 @@ from platform import python_version
 from translation import Translation
 from pyrogram import Client, filters, enums, __version__ as pyrogram_version
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument
-from SyD.command import SYD
 
+SYD = ["<url>","<url"]
 
 main_buttons = [[
         InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker'),
