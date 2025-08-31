@@ -1,20 +1,13 @@
-# MrSyD
-# Telegram Channel @Bot_Cracker
-# Developer @syd_xyz
-
-
-
 
 import os
 from config import Config
 
 class Translation(object):
-  START_TXT = """Hᴇʏ {}
+  START_TXT = """wassup {}
 
-<i>ɪ'ᴍ ᴀ ᴀᴅᴠᴀɴᴄᴇᴅ ᴀᴜᴛᴏ ғᴏʀᴡᴀʀᴅ ʙᴏᴛ
-ɪ ᴄᴀɴ ғᴏʀᴡᴀʀᴅ ᴀʟʟ ᴍᴇssᴀɢᴇ ғʀᴏᴍ ᴏɴᴇ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴀɴᴏᴛʜᴇʀ ᴄʜᴀɴɴᴇʟ ᴡɪᴛʜ ᴀᴍᴀᴢɪɴɢ ғᴇᴀᴛᴜʀᴇs.</i>
+<i>Personal Past Forwarding Bot</i>
 
-<b>Cʟɪᴄᴋ Hᴇʟᴘ Fᴏʀ Kɴᴏᴡ Mᴇ</b>"""
+<b>Click '⊛ Hᴇʟᴩ ⊛' for... Help duh...</b>"""
 
 
   HELP_TXT = """<b><u>⋈ Hᴇʟᴩ</b></u>
@@ -46,10 +39,10 @@ class Translation(object):
 ► __Tʜᴇɴ Uꜱᴇ /forward Tᴏ Fᴏʀᴡᴀʀᴅ Mᴇꜱꜱᴀɢᴇꜱ, Wʜᴇʀᴇ Iᴛ Aꜱᴋ Fᴏʀ Sᴏᴜʀᴄᴇ Cʜᴀᴛ Tᴏ Fᴏᴡᴀʀᴅ__"""
   
   ABOUT_TXT = """<b>⋉ Mʏ Nᴀᴍᴇ :</b> {}
-<b>⋉ Lᴀɴɢᴜᴀɢᴇ :</b> <a href='https://t.me/+0Zi1FC4ulo8zYzVl'>Sᴀᴍᴇ ᴀꜱ!</a>
-<b>⋉ Lɪʙʀᴀʀʏ :</b> <a href='https://t.me/nt_Backup'>Bᴀᴄᴋ-Uᴩ 🕯️</a>
-<b>⋉ Sᴇʀᴠᴇʀ :</b> <a href='https://t.me/+7P5-bLWSuPA5NmFl'>TG 🪄</a>
-<b>⋉ Cʜᴀɴɴᴇʟ :</b> <a href='https://t.me/Bot_Cracker'>Bᴏᴛ Cʀᴀᴄᴋᴇʀ 🎶</a>
+<b>⋉ Lᴀɴɢᴜᴀɢᴇ :</b> <a>English</a>
+<b>⋉ Lɪʙʀᴀʀʏ :</b> <a>Pyrogram</a>
+<b>⋉ Sᴇʀᴠᴇʀ :</b> <a>Koyeb</a>
+<b>⋉ Cʜᴀɴɴᴇʟ :</b> <a href='https://t.me/Bot_Cracker'></a>
 <b>⋉ Dᴇᴠᴇʟᴏᴩᴇʀ :</b> <a href='https://t.me/Syd_XyZ'>ᴍʀ. ꜱʏᴅ 🌧️</a>"""
   
   STATUS_TXT = """<b><u>Bᴏᴛ Sᴛᴀᴛᴜꜱ:</u></b>
