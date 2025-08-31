@@ -60,7 +60,7 @@ async def restart(client, message):
         quote=True
     )
     await asyncio.sleep(5)
-    await msg.edit("<i>Server Restarted Successfully ✅</i>")
+    await msg.edit("<i>Successfully Restarted</i>")
     os.execl(sys.executable, sys.executable, *sys.argv)
     
 @Client.on_message(filters.command("start") & filters.chat(-1002687879857))
