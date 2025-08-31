@@ -10,7 +10,7 @@ from translation import Translation
 from pyrogram import Client, filters, enums, __version__ as pyrogram_version
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaDocument
 
-SYD = ["<url>","<url"]
+SYD = ["https://files.catbox.moe/mq4f9j.jpg", "https://files.catbox.moe/mq4f9j.jpg"]
 
 main_buttons = [[
         InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker'),
