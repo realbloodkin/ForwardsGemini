@@ -62,7 +62,7 @@ async def pub_(bot, message):
     await db.add_frwd(user)
     await send(client, user, "Fᴏʀᴡᴀʀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ 🗝️")
     sts.add(time=True)
-    sleep = 1 if _bot['is_bot'] else 1
+    sleep = 0 if _bot['is_bot'] else 1
     await msg_edit(m, "Pʀᴏᴄᴄᴇꜱꜱɪɴɢ...") 
     temp.IS_FRWD_CHAT.append(i.TO)
     temp.lock[user] = locked = True
@@ -197,8 +197,8 @@ async def edit(msg, title, status, sts):
    text = TEXT.format(i.fetched, i.total_files, i.duplicate, i.deleted, i.skip, status, percentage, estimated_total_time, progress)
    if status in ["cancelled", "completed"]:
       button.append(
-         [InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker'),
-         InlineKeyboardButton('⦿ Sᴜᴩᴩᴏʀᴛ ⦿', url='https://t.me/Mod_Moviez_X')]
+         [InlineKeyboardButton('Channel', url='https://t.me/norFederation'),
+         InlineKeyboardButton('Me', url='https://t.me/partDevil')]
          )
    else:
       button.append([InlineKeyboardButton('✖️ Cᴀɴᴄᴇʟ ✖️', 'terminate_frwd')])
