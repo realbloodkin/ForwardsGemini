@@ -1,66 +1,35 @@
 from bot import bot, db, user
 from telebot.types import Message
-import time
 import logging
 
-# Set up a logger for better debugging
 LOGGER = logging.getLogger(__name__)
 
 @bot.message_handler(commands=['unequify'])
 def unequify_command(message: Message):
-    """
-    Finds and deletes duplicate media files (documents, videos, audio) in a chat.
-    """
-    # A set to store the file_unique_id of files we have already seen
-    seen_files = set()
-    # A list to store the message IDs of duplicate messages to be deleted
-    messages_to_delete = []
-
+    chat_id_to_scan = message.chat.id
+    bot.reply_to(message, f"Attempting to scan chat ID: {chat_id_to_scan}. Check the logs for details.")
+    
     try:
-        # Inform the user that the process has started
-        bot.reply_to(message, "✅ **Starting Scan...**\n\nI will now check for duplicate files in this channel. This may take a moment.")
-    except Exception as e:
-        LOGGER.error(f"Could not send initial reply in chat {message.chat.id}: {e}")
-        return
-
-    try:
-        # Iterate through all messages in the channel using the Pyrogram client ('user')
-        for msg in user.iter_history(message.chat.id):
-            file_id = None
+        LOGGER.info(f"--- STARTING UNEQUIFY DIAGNOSTIC FOR CHAT {chat_id_to_scan} ---")
+        
+        # We will try to get just ONE message to see if history access is working.
+        # The 'limit=1' makes it fast.
+        history = user.get_chat_history(chat_id_to_scan, limit=1)
+        
+        message_found = False
+        for msg in history:
+            # If this loop runs, it means we found at least one message.
+            LOGGER.info(f"SUCCESS! Found message: {msg.text[:50]}...") # Print first 50 chars of the message text
+            message_found = True
             
-            # Check for different media types and get their unique file ID
-            if msg.document:
-                file_id = msg.document.file_unique_id
-            elif msg.video:
-                file_id = msg.video.file_unique_id
-            elif msg.audio:
-                file_id = msg.audio.file_unique_id
-            
-            # If the message contains a file we can check
-            if file_id:
-                # If we have seen this file before, it's a duplicate
-                if file_id in seen_files:
-                    messages_to_delete.append(msg.message_id)
-                else:
-                    # If it's the first time we've seen this file, add it to our set
-                    seen_files.add(file_id)
-
-        # Now, delete all the duplicate messages we found
-        if messages_to_delete:
-            bot.send_message(message.chat.id, f"Found and deleting {len(messages_to_delete)} duplicate files.")
-            for msg_id in messages_to_delete:
-                try:
-                    # Use the correct 'bot' object (pyTelegramBotAPI) to delete messages
-                    bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
-                    time.sleep(1) # Add a small delay to avoid hitting Telegram's rate limits
-                except Exception as e:
-                    # Log errors if a message can't be deleted (e.g., too old, no permissions)
-                    LOGGER.warning(f"Could not delete message {msg_id} in chat {message.chat.id}: {e}")
-            bot.send_message(message.chat.id, "✅ **Cleanup Complete!**")
+        if message_found:
+            bot.send_message(chat_id_to_scan, "✅ Diagnostic PASSED. The user client can successfully read this chat's history.")
         else:
-            bot.send_message(message.chat.id, "✅ No duplicate files were found.")
-            
-    except Exception as e:
-        LOGGER.error(f"A critical error occurred during the unequify scan in chat {message.chat.id}: {e}")
-        bot.send_message(message.chat.id, "❌ **Error!** An unexpected error occurred while scanning the chat. Please check the logs.")
+            bot.send_message(chat_id_to_scan, "❌ Diagnostic FAILED. The user client could not find any messages. The chat might be empty or inaccessible.")
 
+    except Exception as e:
+        # If this 'except' block is triggered, there is a serious error.
+        LOGGER.error(f"CRITICAL ERROR during diagnostic: {e}", exc_info=True)
+        bot.send_message(chat_id_to_scan, f"❌ Diagnostic FAILED with a critical error. Check the logs for an exception like: {e}")
+
+    LOGGER.info(f"--- UNEQUIFY DIAGNOSTIC COMPLETE ---")
