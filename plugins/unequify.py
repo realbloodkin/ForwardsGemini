@@ -64,3 +64,4 @@ async def unequify_command(client, message: Message):
     except Exception as e:
         LOGGER.error(f"A critical error occurred during the unequify scan in chat {message.chat.id}: {e}")
         await client.send_message(message.chat.id, f"❌ **Error!** An unexpected error occurred: {e}")
+
