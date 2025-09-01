@@ -8,8 +8,7 @@ LOGGER = logging.getLogger(__name__)
 
 # NOTE: We are NOT importing 'bot' or 'user' at the top of the file anymore.
 
-# This function will be detected as a handler by Pyrogram automatically.
-# We will get the bot instance ('client') from Pyrogram.
+# **CRITICAL FIX:** The decorator must be directly above the function definition.
 @filters.command("unequify")
 async def unequify_command(client, message: Message):
     """
@@ -65,4 +64,3 @@ async def unequify_command(client, message: Message):
     except Exception as e:
         LOGGER.error(f"A critical error occurred during the unequify scan in chat {message.chat.id}: {e}")
         await client.send_message(message.chat.id, f"❌ **Error!** An unexpected error occurred: {e}")
-
