@@ -1,35 +1,62 @@
-from bot import bot, db, user
-from telebot.types import Message
+from pyrogram import Client, filters
+from pyrogram.types import Message
 import logging
+import asyncio
 
+# Set up logging
 LOGGER = logging.getLogger(__name__)
 
-@bot.message_handler(commands=['unequify'])
-def unequify_command(message: Message):
-    chat_id_to_scan = message.chat.id
-    bot.reply_to(message, f"Attempting to scan chat ID: {chat_id_to_scan}. Check the logs for details.")
-    
+@Client.on_message(filters.command("unequify"))
+async def unequify_command(client: Client, message: Message):
+    """
+    Finds and deletes duplicate media files in a chat using Pyrogram.
+    """
+    # A set to store the unique IDs of files we have already seen
+    seen_files = set()
+    # A list to store the message IDs of duplicates to be deleted
+    messages_to_delete = []
+
     try:
-        LOGGER.info(f"--- STARTING UNEQUIFY DIAGNOSTIC FOR CHAT {chat_id_to_scan} ---")
-        
-        # We will try to get just ONE message to see if history access is working.
-        # The 'limit=1' makes it fast.
-        history = user.get_chat_history(chat_id_to_scan, limit=1)
-        
-        message_found = False
-        for msg in history:
-            # If this loop runs, it means we found at least one message.
-            LOGGER.info(f"SUCCESS! Found message: {msg.text[:50]}...") # Print first 50 chars of the message text
-            message_found = True
-            
-        if message_found:
-            bot.send_message(chat_id_to_scan, "✅ Diagnostic PASSED. The user client can successfully read this chat's history.")
-        else:
-            bot.send_message(chat_id_to_scan, "❌ Diagnostic FAILED. The user client could not find any messages. The chat might be empty or inaccessible.")
-
+        await message.reply_text("✅ **Starting Scan...**\n\nI will now check for duplicate files. This may take a moment.")
     except Exception as e:
-        # If this 'except' block is triggered, there is a serious error.
-        LOGGER.error(f"CRITICAL ERROR during diagnostic: {e}", exc_info=True)
-        bot.send_message(chat_id_to_scan, f"❌ Diagnostic FAILED with a critical error. Check the logs for an exception like: {e}")
+        LOGGER.error(f"Could not send initial reply in chat {message.chat.id}: {e}")
+        return
 
-    LOGGER.info(f"--- UNEQUIFY DIAGNOSTIC COMPLETE ---")
+    try:
+        # Iterate through the chat history using the Pyrogram client
+        async for msg in client.iter_history(message.chat.id):
+            file_id = None
+            
+            if msg.document:
+                file_id = msg.document.file_unique_id
+            elif msg.video:
+                file_id = msg.video.file_unique_id
+            elif msg.audio:
+                file_id = msg.audio.file_unique_id
+            
+            if file_id:
+                if file_id in seen_files:
+                    messages_to_delete.append(msg.message_id)
+                else:
+                    seen_files.add(file_id)
+
+        # Bulk delete all the duplicates we found
+        if messages_to_delete:
+            await client.send_message(message.chat.id, f"Found and deleting {len(messages_to_delete)} duplicate files.")
+            
+            # Pyrogram can delete up to 100 messages at once
+            for i in range(0, len(messages_to_delete), 100):
+                await client.delete_messages(
+                    chat_id=message.chat.id,
+                    message_ids=messages_to_delete[i:i + 100]
+                )
+                await asyncio.sleep(1) # Pause briefly to avoid rate limits
+                
+            await client.send_message(message.chat.id, "✅ **Cleanup Complete!**")
+        else:
+            await client.send_message(message.chat.id, "✅ No duplicate files were found.")
+            
+    except Exception as e:
+        LOGGER.error(f"A critical error occurred during the unequify scan in chat {message.chat.id}: {e}")
+        await client.send_message(message.chat.id, "❌ **Error!** An unexpected error occurred. Please check the logs for details.")
+
