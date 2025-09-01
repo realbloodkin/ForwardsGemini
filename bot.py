@@ -62,7 +62,7 @@ class Bot(Client):
               await self.send_message(chat_id, text)
               success += 1
            except FloodWait as e:
-              await asyncio.sleep(e.value + 1)
+              await asyncio.sleep(e.value + 5)
               await self.send_message(chat_id, text)
               success += 1
            except Exception:
