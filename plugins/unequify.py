@@ -1,32 +1,36 @@
+from pyrogram import filters
 from pyrogram.types import Message
 import logging
 import asyncio
 
-# We need to import both the bot and user clients
-from bot import bot, user
-
 # Set up logging
 LOGGER = logging.getLogger(__name__)
 
-# The decorator must be on the 'bot' object to receive the command
-@bot.on_message(filters.command("unequify"))
+# NOTE: We are NOT importing 'bot' or 'user' at the top of the file anymore.
+
+# This function will be detected as a handler by Pyrogram automatically.
+# We will get the bot instance ('client') from Pyrogram.
+@filters.command("unequify")
 async def unequify_command(client, message: Message):
     """
     Finds and deletes duplicate media files in a chat.
-    Uses 'user' client to scan history and 'bot' client to manage messages.
+    Lazily imports the 'user' client to avoid circular dependency.
     """
+    # **LAZY IMPORT:** Import the 'user' client here, only when the command is run.
+    from bot import user
+
     seen_files = set()
     messages_to_delete = []
 
     try:
-        # Use the 'bot' (client) to reply to the command
-        await client.reply_to(message, "✅ **Starting Scan...**\n\nI will now check for duplicate files. This may take a moment.")
+        # Use the 'client' object (which is the bot) to reply
+        await message.reply_text("✅ **Starting Scan...**\n\nI will now check for duplicate files. This may take a moment.")
     except Exception as e:
         LOGGER.error(f"Could not send initial reply in chat {message.chat.id}: {e}")
         return
 
     try:
-        # **CRITICAL FIX:** Use the 'user' client to iterate through the chat history
+        # Use the imported 'user' client to iterate through the chat history
         async for msg in user.iter_history(message.chat.id):
             file_id = None
             
@@ -44,7 +48,7 @@ async def unequify_command(client, message: Message):
                     seen_files.add(file_id)
 
         if messages_to_delete:
-            # Use the 'bot' (client) to send status updates and delete messages
+            # Use the 'client' (the bot) to send status updates and delete messages
             await client.send_message(message.chat.id, f"Found and deleting {len(messages_to_delete)} duplicate files.")
             
             for i in range(0, len(messages_to_delete), 100):
@@ -61,3 +65,4 @@ async def unequify_command(client, message: Message):
     except Exception as e:
         LOGGER.error(f"A critical error occurred during the unequify scan in chat {message.chat.id}: {e}")
         await client.send_message(message.chat.id, f"❌ **Error!** An unexpected error occurred: {e}")
+
