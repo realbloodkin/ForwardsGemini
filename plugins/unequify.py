@@ -1,86 +1,76 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from pyrogram.errors import FloodWait
-
 import asyncio
 
-# --- Assumptions ---
-# 1. 'userbot' is a Pyrogram Client instance that is initialized and started elsewhere in your code.
-#    It might be a global variable or stored in a session dictionary. For this example, we'll assume it's accessible.
-# 2. This file is a 'plugin' that gets loaded by your main bot.
-#
-# Replace the placeholder logic inside the 'try' block with your actual code.
+# Assuming 'userbot' is a global or otherwise accessible Pyrogram Client instance
 
 @Client.on_message(filters.command("unequify") & filters.private)
-async def unequify_command(bot: Client, message: Message):
+async def unequify_command_robust(bot: Client, message: Message):
     """
-    Handles the /unequify command to perform actions using the userbot.
-    This version is modified for debugging a silent failure.
+    Handles the /unequify command robustly by streaming dialogs
+    and providing progress updates to the user.
     """
-    # Let's assume 'userbot' is accessible here. If it's stored differently,
-    # you might need to fetch it (e.g., userbot = app.userbot_instance)
-    global userbot # Or however you access your userbot client
+    global userbot # Or your method for accessing the userbot
 
+    # --- 1. Initial Setup and User Feedback ---
+    status_message = await message.reply_text("✅ **Request received.**\n\nChecking userbot status...")
     print("--- /unequify command triggered ---")
-    await message.reply_text("Processing your request... Please wait.")
 
-    # --- Step 1: Check if userbot is available ---
     if not userbot or not userbot.is_connected:
-        print("DEBUG: FAILED - The userbot client is not available or not connected.")
-        await message.reply_text("Error: Userbot is not available. Please add it first.")
+        print("DEBUG: FAILED - Userbot is not available or not connected.")
+        await status_message.edit_text("❌ **Error:** Userbot is not available. Please add and start it first.")
         return
 
-    print("DEBUG: SUCCESS - Userbot is available and connected.")
+    print("DEBUG: SUCCESS - Userbot is available.")
+    await status_message.edit_text("✅ **Userbot is active.**\n\nStarting to process chats. This may take a while...")
 
+    # --- 2. Process Dialogs as a Stream ---
     try:
-        processed_chats = []
-        # --- Step 2: Your Core Logic Goes Here (Example: Iterating through chats) ---
-        print("DEBUG: Attempting to get userbot's dialogs...")
-
-        # Get all dialogs (chats) the userbot is in
-        dialogs = userbot.get_dialogs()
+        processed_count = 0
         dialog_count = 0
+        processed_chats_titles = []
 
-        async for dialog in dialogs:
+        # This is the key change: We use `async for` to process one chat at a time.
+        # This prevents the bot from hanging while trying to load all chats at once.
+        print("DEBUG: Starting to iterate through dialogs as a stream...")
+        async for dialog in userbot.get_dialogs():
             dialog_count += 1
-            print(f"DEBUG: Processing dialog #{dialog_count}: {dialog.chat.title or 'Unknown Title'} ({dialog.chat.id})")
+            chat_title = dialog.chat.title or dialog.chat.first_name or "Unknown Chat"
+            print(f"DEBUG: Processing dialog #{dialog_count}: {chat_title} ({dialog.chat.id})")
 
-            # --- Placeholder for your logic ---
-            # Maybe you check for a specific condition before "unequifying"
-            if "some_condition_to_check" in (dialog.chat.title or ""):
-                print(f"DEBUG: Condition met for {dialog.chat.id}. Performing action.")
-                # For example, leaving the chat
-                # await userbot.leave_chat(dialog.chat.id)
-                processed_chats.append(dialog.chat.title)
-                # To avoid hitting API limits
-                await asyncio.sleep(2)
-            else:
-                print(f"DEBUG: Condition NOT met for {dialog.chat.id}. Skipping.")
-                pass
-            # --- End of Placeholder ---
+            # --- YOUR LOGIC GOES HERE ---
+            # Replace this `if` condition with your actual criteria for "unequifying"
+            if "example" in chat_title.lower(): # Example: Leave chats with "example" in the title
+                print(f"DEBUG: Condition MET for '{chat_title}'. Performing action.")
+                # await userbot.leave_chat(dialog.chat.id) # Uncomment to perform the action
+                processed_count += 1
+                processed_chats_titles.append(chat_title)
+                await asyncio.sleep(2) # Sleep to avoid API rate limits
+            # --- END OF YOUR LOGIC ---
 
-        print(f"DEBUG: Finished iterating through {dialog_count} dialogs.")
+            # Provide a status update to the user every 25 chats
+            if dialog_count % 25 == 0:
+                await status_message.edit_text(
+                    f"⚙️ **In progress...**\n\n"
+                    f"Scanned: {dialog_count} chats\n"
+                    f"Processed: {processed_count} chats"
+                )
 
-        # --- Step 3: Send the Final Report Message ---
-        if not processed_chats:
-            final_message = "Unequify process completed. No chats met the criteria to be processed."
-            print(f"DEBUG: No chats were processed. Sending 'no action taken' message.")
-        else:
-            final_message = f"Unequify process completed successfully.\n\nProcessed Chats:\n- " + "\n- ".join(processed_chats)
-            print(f"DEBUG: {len(processed_chats)} chats were processed. Sending success message.")
+        print("DEBUG: Finished iterating through all dialogs.")
 
-        await message.reply_text(final_message)
-        print("--- /unequify command finished successfully ---")
+        # --- 3. Final Report ---
+        final_report = (
+            f"✅ **Unequify Process Completed!**\n\n"
+            f"Total Chats Scanned: {dialog_count}\n"
+            f"Total Chats Processed: {processed_count}\n\n"
+        )
+        if processed_chats_titles:
+            final_report += "Affected Chats:\n- " + "\n- ".join(processed_chats_titles)
 
-    except FloodWait as fw:
-        print(f"DEBUG: ERROR - Hit a FloodWait of {fw.value} seconds.")
-        await asyncio.sleep(fw.value)
-        await message.reply_text(f"FloodWait: Paused for {fw.value} seconds and will need to be restarted.")
+        await status_message.edit_text(final_report)
 
     except Exception as e:
-        # This is the most important part for debugging unexpected errors
-        print(f"DEBUG: An unexpected ERROR occurred in the unequify command: {e}")
-        # Also print the traceback for more details
+        print(f"DEBUG: An unexpected ERROR occurred: {e}")
         import traceback
         traceback.print_exc()
-        await message.reply_text("An unexpected error occurred. Please check the logs for more details.")
+        await status_message.edit_text(f"❌ **An unexpected error occurred.**\n\nError: `{e}`\n\nPlease check the logs for more details.")
