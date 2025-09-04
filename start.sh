@@ -7,7 +7,7 @@ else
   echo "Cloning $BRANCH branch...."
   git clone https://github.com/Mr-Syd/FR -b $BRANCH /main
 fi
-cd Mr-SyD-OrG/Forw
+#cd Mr-SyD-OrG/Forw
 pip3 install -U -r requirements.txt
 echo "Starting Bot...."
 python3 main.py
