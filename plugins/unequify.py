@@ -1,152 +1,86 @@
-# MrSyD 🧩
-# By @Bot_Cracker 🎋
-# Developer @syd_xyz
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from pyrogram.errors import FloodWait
 
+import asyncio
 
-
-from pyrogram.errors import UserNotParticipant
-import re, asyncio
-from database import db
-from config import temp
-from .public import SYD_CHANNELS
-from .test import CLIENT , start_clone_bot
-from translation import Translation
-from pyrogram import Client, filters 
-#from pyropatch.utils import unpack_new_file_id
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-CLIENT = CLIENT()
-COMPLETED_BTN = InlineKeyboardMarkup(
-   [
-      [InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker')],
-      [InlineKeyboardButton('⦿ Sᴜᴩᴩᴏʀᴛ ⦿', url='https://t.me/Mod_Moviez_X')]
-   ]
-)
-
-CANCEL_BTN = InlineKeyboardMarkup([[InlineKeyboardButton('⛒ Cᴀɴᴄᴇʟ ⛒', 'terminate_frwd')]])
-
-
-
-
+# --- Assumptions ---
+# 1. 'userbot' is a Pyrogram Client instance that is initialized and started elsewhere in your code.
+#    It might be a global variable or stored in a session dictionary. For this example, we'll assume it's accessible.
+# 2. This file is a 'plugin' that gets loaded by your main bot.
+#
+# Replace the placeholder logic inside the 'try' block with your actual code.
 
 @Client.on_message(filters.command("unequify") & filters.private)
-async def unequify(client, message):
-   user_id = message.from_user.id
-   temp.CANCEL[user_id] = False
-   if temp.lock.get(user_id) and str(temp.lock.get(user_id))=="True":
-      return await message.reply("Pʟᴇᴀꜱᴇ Wᴀɪᴛ Uɴᴛɪʟ Pʀᴇᴠɪᴏᴜꜱ Tᴀꜱᴋ Iꜱ Cᴏᴍᴩʟᴇᴛᴇᴅ")
-   _bot = await db.get_bot(user_id)
-   if not _bot or _bot['is_bot']:
-      return await message.reply("Nᴇᴇᴅ UꜱᴇʀBᴏᴛ To Foʀ Tʜɪꜱ Pʀᴏᴄᴇꜱꜱ. Pʟᴇᴀꜱᴇ Aᴅᴅ A UꜱᴇʀBᴏᴛ Uꜱɪɴɢ /settings")
-   not_joined_channels = []
-   for channel in SYD_CHANNELS:
-        try:
-            user = await bot.get_chat_member(channel, message.from_user.id)
-            if user.status in {"kicked", "left"}:
-                not_joined_channels.append(channel)
-        except UserNotParticipant:
-            not_joined_channels.append(channel)
-            
-   if not_joined_channels:
-       buttons = [
-           [
-               InlineKeyboardButton(
-                   text=f"✧ Jᴏɪɴ {channel.capitalize().replace("_", " ")}✧", url=f"https://t.me/{channel}"
-               )
-           ]
-       for channel in not_joined_channels
-       ]
-       buttons.append(
-           [
-               InlineKeyboardButton(
-                   text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+0Zi1FC4ulo8zYzVl"
+async def unequify_command(bot: Client, message: Message):
+    """
+    Handles the /unequify command to perform actions using the userbot.
+    This version is modified for debugging a silent failure.
+    """
+    # Let's assume 'userbot' is accessible here. If it's stored differently,
+    # you might need to fetch it (e.g., userbot = app.userbot_instance)
+    global userbot # Or however you access your userbot client
 
-               )
-           ]
-       )
-       buttons.append(
-           [
-               InlineKeyboardButton(
-                   text="☑ ᴊᴏɪɴᴇᴅ ☑", callback_data="check_subscription"
-               )
-           ]
-       )
+    print("--- /unequify command triggered ---")
+    await message.reply_text("Processing your request... Please wait.")
 
-       text = "**Sᴏʀʀʏ, ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴊᴏɪɴ ɪɴ ᴏᴜʀ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟꜱ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ꜰᴇᴀᴛᴜʀᴇ, ᴩʟᴇᴀꜱᴇ ᴅᴏ ꜱᴏ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.. ⚡ .**"
-       return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
-        
-   target = await client.ask(user_id, text="Forward The Last Message From Target Chat Or Send Last Message Link.\n/cancel - To Cancel This Process")
-   if target.text.startswith("/"):
-      return await message.reply("Process Cancelled !")
-   elif target.text:
-      regex = re.compile(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
-      match = regex.match(target.text.replace("?single", ""))
-      if not match:
-         return await message.reply('Iɴᴠᴀʟɪᴅ Lɪɴᴋ !')
-      chat_id = match.group(4)
-      last_msg_id = int(match.group(5))
-      if chat_id.isnumeric():
-         chat_id  = int(("-100" + chat_id))
-   elif fromid.forward_from_chat.type in ['channel', 'supergroup']:
-        last_msg_id = target.forward_from_message_id
-        chat_id = target.forward_from_chat.username or target.forward_from_chat.id
-   else:
-        return await message.reply_text("Iɴᴠᴀʟɪᴅ !")
-   confirm = await client.ask(user_id, text="Sᴇɴᴅ /yes To Sᴛᴀʀᴛ Tʜᴇ Pʀᴏᴄᴇꜱꜱ Aɴᴅ /no To Cᴀɴᴄᴇʟ Tʜɪꜱ Pʀᴏᴄᴇꜱꜱ!")
-   if confirm.text.lower() == '/no':
-      return await confirm.reply("Pʀᴏᴄᴇꜱꜱ Cᴀɴᴄᴇʟʟᴇᴅ !")
-   sts = await confirm.reply("Pʀᴏᴄᴇꜱꜱɪɴɢ...")
-   try:
-      bot = await start_clone_bot(CLIENT.client(_bot))
-   except Exception as e:
-      return await sts.edit(e)
-   try:
-       k = await bot.send_message(chat_id, text="Tᴇꜱᴛɪɴɢ")
-       await k.delete()
-   except:
-       await sts.edit(f"Please Make Your [Userbot](t.me/{_bot['username']}) Admin In Target Chat With Full Permissions")
-       return await bot.stop()
-   MESSAGES = []
-   DUPLICATE = []
-   total=deleted=0
-   temp.lock[user_id] = True
-   try:
-     await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Progressing"), reply_markup=CANCEL_BTN)
-     async for message in bot.search_messages(chat_id=chat_id, filter="document"):
-        if temp.CANCEL.get(user_id) == True:
-           await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Cancelled"), reply_markup=COMPLETED_BTN)
-           return await bot.stop()
-        file = message.document
-        file_id = unpack_new_file_id(file.file_id) 
-        if file_id in MESSAGES:
-           DUPLICATE.append(message.id)
+    # --- Step 1: Check if userbot is available ---
+    if not userbot or not userbot.is_connected:
+        print("DEBUG: FAILED - The userbot client is not available or not connected.")
+        await message.reply_text("Error: Userbot is not available. Please add it first.")
+        return
+
+    print("DEBUG: SUCCESS - Userbot is available and connected.")
+
+    try:
+        processed_chats = []
+        # --- Step 2: Your Core Logic Goes Here (Example: Iterating through chats) ---
+        print("DEBUG: Attempting to get userbot's dialogs...")
+
+        # Get all dialogs (chats) the userbot is in
+        dialogs = userbot.get_dialogs()
+        dialog_count = 0
+
+        async for dialog in dialogs:
+            dialog_count += 1
+            print(f"DEBUG: Processing dialog #{dialog_count}: {dialog.chat.title or 'Unknown Title'} ({dialog.chat.id})")
+
+            # --- Placeholder for your logic ---
+            # Maybe you check for a specific condition before "unequifying"
+            if "some_condition_to_check" in (dialog.chat.title or ""):
+                print(f"DEBUG: Condition met for {dialog.chat.id}. Performing action.")
+                # For example, leaving the chat
+                # await userbot.leave_chat(dialog.chat.id)
+                processed_chats.append(dialog.chat.title)
+                # To avoid hitting API limits
+                await asyncio.sleep(2)
+            else:
+                print(f"DEBUG: Condition NOT met for {dialog.chat.id}. Skipping.")
+                pass
+            # --- End of Placeholder ---
+
+        print(f"DEBUG: Finished iterating through {dialog_count} dialogs.")
+
+        # --- Step 3: Send the Final Report Message ---
+        if not processed_chats:
+            final_message = "Unequify process completed. No chats met the criteria to be processed."
+            print(f"DEBUG: No chats were processed. Sending 'no action taken' message.")
         else:
-           MESSAGES.append(file_id)
-        total += 1
-        if total %10000 == 0:
-           await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Progressing"), reply_markup=CANCEL_BTN)
-        if len(DUPLICATE) >= 100:
-           await bot.delete_messages(chat_id, DUPLICATE)
-           deleted += 100
-           await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Cancelled"), reply_markup=CANCEL_BTN)
-           DUPLICATE = []
-     if DUPLICATE:
-        await bot.delete_messages(chat_id, DUPLICATE)
-        deleted += len(DUPLICATE)
-   except Exception as e:
-       temp.lock[user_id] = False 
-       await sts.edit(f"**Error**\n\n`{e}`")
-       return await bot.stop()
-   temp.lock[user_id] = False
-   await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Completed"), reply_markup=COMPLETED_BTN)
-   await bot.stop()
-   
+            final_message = f"Unequify process completed successfully.\n\nProcessed Chats:\n- " + "\n- ".join(processed_chats)
+            print(f"DEBUG: {len(processed_chats)} chats were processed. Sending success message.")
 
+        await message.reply_text(final_message)
+        print("--- /unequify command finished successfully ---")
 
+    except FloodWait as fw:
+        print(f"DEBUG: ERROR - Hit a FloodWait of {fw.value} seconds.")
+        await asyncio.sleep(fw.value)
+        await message.reply_text(f"FloodWait: Paused for {fw.value} seconds and will need to be restarted.")
 
-
-
-
-# MrSyD 🧩
-# By @Bot_Cracker 🎋
-# Developer @syd_xyz
+    except Exception as e:
+        # This is the most important part for debugging unexpected errors
+        print(f"DEBUG: An unexpected ERROR occurred in the unequify command: {e}")
+        # Also print the traceback for more details
+        import traceback
+        traceback.print_exc()
+        await message.reply_text("An unexpected error occurred. Please check the logs for more details.")
