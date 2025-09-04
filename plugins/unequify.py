@@ -1,3 +1,8 @@
+# MrSyD 🧩
+# By @Bot_Cracker 🎋
+# Developer @syd_xyz
+
+
 
 from pyrogram.errors import UserNotParticipant
 import re, asyncio
@@ -13,8 +18,8 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 CLIENT = CLIENT()
 COMPLETED_BTN = InlineKeyboardMarkup(
    [
-      [InlineKeyboardButton('Placeholder', url='https://t.me/partDevil')],
-      [InlineKeyboardButton('Placeholder', url='https://t.me/partDevil')]
+      [InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker')],
+      [InlineKeyboardButton('⦿ Sᴜᴩᴩᴏʀᴛ ⦿', url='https://t.me/Mod_Moviez_X')]
    ]
 )
 
@@ -33,12 +38,12 @@ async def unequify(client, message):
    _bot = await db.get_bot(user_id)
    if not _bot or _bot['is_bot']:
       return await message.reply("Nᴇᴇᴅ UꜱᴇʀBᴏᴛ To Foʀ Tʜɪꜱ Pʀᴏᴄᴇꜱꜱ. Pʟᴇᴀꜱᴇ Aᴅᴅ A UꜱᴇʀBᴏᴛ Uꜱɪɴɢ /settings")
+  not_joined_channels = [
    for channel in SYD_CHANNELS:
         try:
             user = await bot.get_chat_member(channel, message.from_user.id)
             if user.status in {"kicked", "left"}:
-               not_joined_channels.append(channel)
-               not_joined_channels = []
+                not_joined_channels.append(channel)
         except UserNotParticipant:
             not_joined_channels.append(channel)
             
@@ -54,7 +59,7 @@ async def unequify(client, message):
        buttons.append(
            [
                InlineKeyboardButton(
-                   text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/norFederation"
+                   text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+0Zi1FC4ulo8zYzVl"
 
                )
            ]
@@ -136,3 +141,12 @@ async def unequify(client, message):
    await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Completed"), reply_markup=COMPLETED_BTN)
    await bot.stop()
    
+
+
+
+
+
+
+# MrSyD 🧩
+# By @Bot_Cracker 🎋
+# Developer @syd_xyz
