@@ -1,12 +1,10 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from pyrogram.sessions import StringSession
 import os
 import asyncio
 
 # --- IMPORTANT ---
-# You must set this environment variable in your Koyeb service settings.
-# It's the session string for your user account.
+# You must have this environment variable set in your Koyeb service settings.
 USERBOT_SESSION_STRING = os.environ.get("USERBOT_SESSION_STRING")
 
 @Client.on_message(filters.command("unequify") & filters.private)
