@@ -6,29 +6,23 @@ import os
 import asyncio
 
 # --- Environment Variable ---
-# Ensure this is set in your Koyeb service settings.
 USERBOT_SESSION_STRING = os.environ.get("USERBOT_SESSION_STRING")
 
 @Client.on_message(filters.command("unequify") & filters.private)
 async def unequify_command_deduplicate(bot: Client, message: Message):
     """
-    Handles the /unequify command to find and delete duplicate messages
-    within a specified channel, with pre-scan permission checks that
-    correctly identify both Administrators and the Channel Owner.
+    Handles the /unequify command with a pre-scan chat discovery step
+    to ensure the userbot session is aware of the target channel/group.
     """
-    # --- 1. Command and Input Validation ---
     status_message = await message.reply_text("`Processing your request...`")
 
     if len(message.command) < 2:
         await status_message.edit_text(
-            "**Please specify a target channel.**\n\n"
-            "**Usage:** `/unequify [channel_username or channel_id]`"
+            "**Usage:** `/unequify [channel_username or chat_id]`"
         )
         return
 
     target_channel_input = message.command[1]
-
-    # Convert numeric chat IDs to integers
     try:
         if target_channel_input.startswith("-") and target_channel_input[1:].isdigit():
             target_channel = int(target_channel_input)
@@ -38,10 +32,9 @@ async def unequify_command_deduplicate(bot: Client, message: Message):
         target_channel = target_channel_input
 
     if not USERBOT_SESSION_STRING:
-        await status_message.edit_text("❌ **Configuration Error!**\n\nThe `USERBOT_SESSION_STRING` is not set.")
+        await status_message.edit_text("❌ **Configuration Error!** `USERBOT_SESSION_STRING` is not set.")
         return
 
-    # --- 2. Initialize and Perform Permission Checks ---
     await status_message.edit_text("`Initializing userbot session...`")
     
     seen_identifiers = set()
@@ -51,41 +44,45 @@ async def unequify_command_deduplicate(bot: Client, message: Message):
 
     try:
         async with Client(name="userbot_session", session_string=USERBOT_SESSION_STRING) as userbot:
-            await status_message.edit_text(f"`Accessing channel: {target_channel_input}...`")
             
+            # --- NEW: Chat Discovery Step ---
+            # This forces the session to be aware of all chats, fixing CHANNEL_INVALID.
+            await status_message.edit_text("`Synchronizing chat list... (Discovery Step)`")
+            found_chat_in_dialogs = False
             try:
-                chat = await userbot.get_chat(target_channel)
-            except (PeerIdInvalid, UsernameNotOccupied, UsernameInvalid, ChannelInvalid) as e:
-                await status_message.edit_text(f"❌ **Error:** Could not find '{target_channel_input}'. Please check the ID/username and ensure the userbot is a member.\n\n`{e}`")
+                async for dialog in userbot.get_dialogs():
+                    if dialog.chat.id == target_channel:
+                        found_chat_in_dialogs = True
+                        break
+                if not found_chat_in_dialogs:
+                    await status_message.edit_text(f"❌ **Discovery Failed!**\n\nCould not find a chat with ID `{target_channel}` in my chat list. Please ensure I am a member.")
+                    return
+            except Exception as e:
+                await status_message.edit_text(f"❌ **Error during Discovery:**\n`{e}`")
                 return
+            # --- END OF NEW STEP ---
 
-            await status_message.edit_text(f"`Found channel: {chat.title}`\n\n`Now, checking my permissions...`")
+            await status_message.edit_text(f"`Accessing chat: {target_channel_input}...`")
+            chat = await userbot.get_chat(target_channel)
+
+            await status_message.edit_text(f"`Found: {chat.title}`\n\n`Checking permissions...`")
             member = await userbot.get_chat_member(chat.id, "me")
             
-            # --- THE FIX IS HERE ---
-            # The userbot is considered authorized if it is an ADMIN or the OWNER.
             is_authorized = member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
             can_delete = member.privileges and member.privileges.can_delete_messages if member.privileges else False
 
-            # The Owner status doesn't explicitly list privileges, but has them all.
-            if is_authorized and (member.status == ChatMemberStatus.OWNER or can_delete):
-                # All good, continue
-                pass
-            else:
+            if not (is_authorized and (member.status == ChatMemberStatus.OWNER or can_delete)):
                 await status_message.edit_text(
                     f"❌ **Permission Denied in '{chat.title}'!**\n\n"
-                    "I am not an administrator or I lack the **'Delete Messages'** privilege.\n\n"
-                    "Please promote my userbot account to an admin and grant this permission to proceed."
+                    "I am not an admin/owner with **'Delete Messages'** privilege."
                 )
                 return
-            # --- END OF FIX ---
             
             await status_message.edit_text(
-                f"✅ **Permissions Confirmed!** (Status: `{member.status.name}`)\n\n`Starting scan for duplicates...`"
+                f"✅ **Permissions Confirmed!** (Status: `{member.status.name}`)\n\n`Starting scan...`"
             )
             await asyncio.sleep(2)
 
-            # --- 3. Scan History and Deduplicate ---
             async for msg in userbot.get_chat_history(chat.id):
                 total_scanned += 1
                 identifier = None
@@ -106,9 +103,8 @@ async def unequify_command_deduplicate(bot: Client, message: Message):
                     total_deleted += deleted_count
                     duplicates_to_delete.clear()
                     await status_message.edit_text(
-                        f"⚙️ **In progress...**\n\n"
-                        f"Scanned: `{total_scanned}` messages\n"
-                        f"Deleted: `{total_deleted}` duplicates"
+                        f"⚙️ **In progress...**\n"
+                        f"Scanned: `{total_scanned}` | Deleted: `{total_deleted}`"
                     )
                     await asyncio.sleep(5)
 
@@ -117,16 +113,15 @@ async def unequify_command_deduplicate(bot: Client, message: Message):
                 await userbot.delete_messages(chat_id=chat.id, message_ids=duplicates_to_delete)
                 total_deleted += deleted_count
 
-            # --- 4. Final Report ---
             await status_message.edit_text(
                 f"✅ **Deduplication Complete!**\n\n"
-                f"**Channel:** {chat.title}\n"
-                f"**Total Messages Scanned:** `{total_scanned}`\n"
-                f"**Duplicate Messages Deleted:** `{total_deleted}`"
+                f"**Chat:** {chat.title}\n"
+                f"**Messages Scanned:** `{total_scanned}`\n"
+                f"**Duplicates Deleted:** `{total_deleted}`"
             )
 
     except FloodWait as e:
-        await status_message.edit_text(f"❌ **Rate Limit Exceeded.** Please wait `{e.value}` seconds before trying again.")
+        await status_message.edit_text(f"❌ **Rate Limit Exceeded.** Please wait `{e.value}` seconds.")
     except Exception as e:
         print(f"An unexpected ERROR occurred: {e}")
         import traceback
