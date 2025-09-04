@@ -12,15 +12,6 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQ
  
 SYD_CHANNELS = ["norFederation"]
 
-# async def not_subscribed(_, __, message):
-    #for channel in SYD_CHANNELS:
-       # try:
-           # user = await message._client.get_chat_member(channel, message.from_user.id)
-          #  if user.status in {"kicked", "left"}:
-           #     return True
-      #  except UserNotParticipant:
-          #  return True
-#    return False
 #===================Run Function===================#
 
 @Client.on_message(filters.private & filters.command(["fwd", "forward"]))
@@ -44,7 +35,7 @@ async def run(bot, message):
             not_joined_channels.append(channel)
             
     if not_joined_channels:
-        # This is a correct list comprehension
+        # CORRECTED LIST COMPREHENSION #1
         buttons = [
             [
                 InlineKeyboardButton(
@@ -55,7 +46,6 @@ async def run(bot, message):
             for channel in not_joined_channels
         ]
         
-        # Now, append the other static buttons
         buttons.append(
             [
                 InlineKeyboardButton(
@@ -112,8 +102,6 @@ async def run(bot, message):
         return 
     try:
         title = (await bot.get_chat(chat_id)).title
-  #  except ChannelInvalid:
-        #return await fromid.reply("**Given source chat is copyrighted channel/group. you can't forward messages from there**")
     except (PrivateChat, ChannelPrivate, ChannelInvalid):
         title = "private" if fromid.text else fromid.forward_from_chat.title
     except (UsernameInvalid, UsernameNotModified):
@@ -139,8 +127,6 @@ async def run(bot, message):
     STS(forward_id).store(chat_id, toid, int(skipno.text), int(last_msg_id))
 
 
-
-
 @Client.on_callback_query(filters.regex("check_subscription"))
 async def check_subscription(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -160,10 +146,11 @@ async def check_subscription(client, callback_query: CallbackQuery):
         )
         await callback_query.message.reply("🎊")
     else:
+        # CORRECTED LIST COMPREHENSION #2
         buttons = [
             [
                 InlineKeyboardButton(
-                    text=f"✧ Jᴏɪɴ {channel.capitalize().replace("_", " ")} ✧",
+                    text=f"✧ Jᴏɪɴ {channel.capitalize().replace('_', ' ')} ✧",
                     url=f"https://t.me/{channel}",
                 )
             ]
@@ -190,3 +177,4 @@ async def check_subscription(client, callback_query: CallbackQuery):
         await callback_query.message.edit_text(
             text=text, reply_markup=InlineKeyboardMarkup(buttons)
      )
+
