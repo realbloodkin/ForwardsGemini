@@ -1,4 +1,3 @@
-
 import re
 import asyncio 
 from .utils import STS
@@ -45,19 +44,22 @@ async def run(bot, message):
             not_joined_channels.append(channel)
             
     if not_joined_channels:
+        # This is a correct list comprehension
         buttons = [
             [
                 InlineKeyboardButton(
-                    text=f"✧ Jᴏɪɴ {channel.capitalize().replace("_", " ")}✧", url=f"https://t.me/{channel}"
+                    text=f"✧ Jᴏɪɴ {channel.capitalize().replace('_', ' ')}✧",
+                    url=f"https://t.me/{channel}"
                 )
             ]
-        for channel in not_joined_channels
+            for channel in not_joined_channels
         ]
+        
+        # Now, append the other static buttons
         buttons.append(
             [
                 InlineKeyboardButton(
                     text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+bAsrcnckBNdkMjVi"
-
                 )
             ]
         )
