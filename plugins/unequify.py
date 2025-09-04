@@ -38,7 +38,7 @@ async def unequify(client, message):
    _bot = await db.get_bot(user_id)
    if not _bot or _bot['is_bot']:
       return await message.reply("Nᴇᴇᴅ UꜱᴇʀBᴏᴛ To Foʀ Tʜɪꜱ Pʀᴏᴄᴇꜱꜱ. Pʟᴇᴀꜱᴇ Aᴅᴅ A UꜱᴇʀBᴏᴛ Uꜱɪɴɢ /settings")
-  not_joined_channels = []
+      not_joined_channels = []
    for channel in SYD_CHANNELS:
         try:
             user = await bot.get_chat_member(channel, message.from_user.id)
