@@ -1,115 +1,134 @@
-# MrSyD 🧩
-# By @Bot_Cracker 🎋
-# Developer @syd_xyz
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors import FloodWait, ChannelInvalid, UsernameNotOccupied, UsernameInvalid, PeerIdInvalid
+import os
+import asyncio
 
-
-
-from pyrogram.errors import UserNotParticipant
-import re, asyncio
-from database import db
-from config import temp
-from .public import SYD_CHANNELS
-from .test import CLIENT , start_clone_bot
-from translation import Translation
-from pyrogram import Client, filters 
-#from pyropatch.utils import unpack_new_file_id
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-CLIENT = CLIENT()
-COMPLETED_BTN = InlineKeyboardMarkup(
-   [
-      [InlineKeyboardButton('◈ Uᴩᴅᴀᴛᴇ ◈', url='https://t.me/Bot_Cracker')],
-      [InlineKeyboardButton('⦿ Sᴜᴩᴩᴏʀᴛ ⦿', url='https://t.me/Mod_Moviez_X')]
-   ]
-)
-
-CANCEL_BTN = InlineKeyboardMarkup([[InlineKeyboardButton('⛒ Cᴀɴᴄᴇʟ ⛒', 'terminate_frwd')]])
-
-
-
-
+# --- Environment Variable ---
+# Ensure this is set in your Koyeb service settings.
+USERBOT_SESSION_STRING = os.environ.get("USERBOT_SESSION_STRING")
 
 @Client.on_message(filters.command("unequify") & filters.private)
-async def unequify(client, message):
-   user_id = message.from_user.id
-   temp.CANCEL[user_id] = False
-   if temp.lock.get(user_id) and str(temp.lock.get(user_id))=="True":
-      return await message.reply("Pʟᴇᴀꜱᴇ Wᴀɪᴛ Uɴᴛɪʟ Pʀᴇᴠɪᴏᴜꜱ Tᴀꜱᴋ Iꜱ Cᴏᴍᴩʟᴇᴛᴇᴅ")
-   _bot = await db.get_bot(user_id)
-   if not _bot or _bot['is_bot']:
-      return await message.reply("Nᴇᴇᴅ UꜱᴇʀBᴏᴛ To Foʀ Tʜɪꜱ Pʀᴏᴄᴇꜱꜱ. Pʟᴇᴀꜱᴇ Aᴅᴅ A UꜱᴇʀBᴏᴛ Uꜱɪɴɢ /settings")
-   target = await client.ask(user_id, text="Forward The Last Message From Target Chat Or Send Last Message Link.\n/cancel - To Cancel This Process")
-   if target.text.startswith("/"):
-      return await message.reply("Process Cancelled !")
-   elif target.text:
-      regex = re.compile(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
-      match = regex.match(target.text.replace("?single", ""))
-      if not match:
-         return await message.reply('Iɴᴠᴀʟɪᴅ Lɪɴᴋ !')
-      chat_id = match.group(4)
-      last_msg_id = int(match.group(5))
-      if chat_id.isnumeric():
-         chat_id  = int(("-100" + chat_id))
-   elif fromid.forward_from_chat.type in ['channel', 'supergroup']:
-        last_msg_id = target.forward_from_message_id
-        chat_id = target.forward_from_chat.username or target.forward_from_chat.id
-   else:
-        return await message.reply_text("Iɴᴠᴀʟɪᴅ !")
-   confirm = await client.ask(user_id, text="Sᴇɴᴅ /yes To Sᴛᴀʀᴛ Tʜᴇ Pʀᴏᴄᴇꜱꜱ Aɴᴅ /no To Cᴀɴᴄᴇʟ Tʜɪꜱ Pʀᴏᴄᴇꜱꜱ!")
-   if confirm.text.lower() == '/no':
-      return await confirm.reply("Pʀᴏᴄᴇꜱꜱ Cᴀɴᴄᴇʟʟᴇᴅ !")
-   sts = await confirm.reply("Pʀᴏᴄᴇꜱꜱɪɴɢ...")
-   try:
-      bot = await start_clone_bot(CLIENT.client(_bot))
-   except Exception as e:
-      return await sts.edit(e)
-   try:
-       k = await bot.send_message(chat_id, text="Tᴇꜱᴛɪɴɢ")
-       await k.delete()
-   except:
-       await sts.edit(f"Please Make Your [Userbot](t.me/{_bot['username']}) Admin In Target Chat With Full Permissions")
-       return await bot.stop()
-   MESSAGES = []
-   DUPLICATE = []
-   total=deleted=0
-   temp.lock[user_id] = True
-   try:
-     await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Progressing"), reply_markup=CANCEL_BTN)
-     async for message in bot.search_messages(chat_id=chat_id, filter="document"):
-        if temp.CANCEL.get(user_id) == True:
-           await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Cancelled"), reply_markup=COMPLETED_BTN)
-           return await bot.stop()
-        file = message.document
-        file_id = unpack_new_file_id(file.file_id) 
-        if file_id in MESSAGES:
-           DUPLICATE.append(message.id)
+async def unequify_command_deduplicate(bot: Client, message: Message):
+    """
+    Handles the /unequify command to find and delete duplicate messages
+    within a specified channel, with pre-scan permission checks that
+    correctly identify both Administrators and the Channel Owner.
+    """
+    # --- 1. Command and Input Validation ---
+    status_message = await message.reply_text("`Processing your request...`")
+
+    if len(message.command) < 2:
+        await status_message.edit_text(
+            "**Please specify a target channel.**\n\n"
+            "**Usage:** `/unequify [channel_username or channel_id]`"
+        )
+        return
+
+    target_channel_input = message.command[1]
+
+    # Convert numeric chat IDs to integers
+    try:
+        if target_channel_input.startswith("-") and target_channel_input[1:].isdigit():
+            target_channel = int(target_channel_input)
         else:
-           MESSAGES.append(file_id)
-        total += 1
-        if total %10000 == 0:
-           await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Progressing"), reply_markup=CANCEL_BTN)
-        if len(DUPLICATE) >= 100:
-           await bot.delete_messages(chat_id, DUPLICATE)
-           deleted += 100
-           await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Cancelled"), reply_markup=CANCEL_BTN)
-           DUPLICATE = []
-     if DUPLICATE:
-        await bot.delete_messages(chat_id, DUPLICATE)
-        deleted += len(DUPLICATE)
-   except Exception as e:
-       temp.lock[user_id] = False 
-       await sts.edit(f"**Error**\n\n`{e}`")
-       return await bot.stop()
-   temp.lock[user_id] = False
-   await sts.edit(Translation.DUPLICATE_TEXT.format(total, deleted, "Completed"), reply_markup=COMPLETED_BTN)
-   await bot.stop()
-   
+            target_channel = target_channel_input
+    except ValueError:
+        target_channel = target_channel_input
 
+    if not USERBOT_SESSION_STRING:
+        await status_message.edit_text("❌ **Configuration Error!**\n\nThe `USERBOT_SESSION_STRING` is not set.")
+        return
 
+    # --- 2. Initialize and Perform Permission Checks ---
+    await status_message.edit_text("`Initializing userbot session...`")
+    
+    seen_identifiers = set()
+    duplicates_to_delete = []
+    total_scanned = 0
+    total_deleted = 0
 
+    try:
+        async with Client(name="userbot_session", session_string=USERBOT_SESSION_STRING) as userbot:
+            await status_message.edit_text(f"`Accessing channel: {target_channel_input}...`")
+            
+            try:
+                chat = await userbot.get_chat(target_channel)
+            except (PeerIdInvalid, UsernameNotOccupied, UsernameInvalid, ChannelInvalid) as e:
+                await status_message.edit_text(f"❌ **Error:** Could not find '{target_channel_input}'. Please check the ID/username and ensure the userbot is a member.\n\n`{e}`")
+                return
 
+            await status_message.edit_text(f"`Found channel: {chat.title}`\n\n`Now, checking my permissions...`")
+            member = await userbot.get_chat_member(chat.id, "me")
+            
+            # --- THE FIX IS HERE ---
+            # The userbot is considered authorized if it is an ADMIN or the OWNER.
+            is_authorized = member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
+            can_delete = member.privileges and member.privileges.can_delete_messages if member.privileges else False
 
+            # The Owner status doesn't explicitly list privileges, but has them all.
+            if is_authorized and (member.status == ChatMemberStatus.OWNER or can_delete):
+                # All good, continue
+                pass
+            else:
+                await status_message.edit_text(
+                    f"❌ **Permission Denied in '{chat.title}'!**\n\n"
+                    "I am not an administrator or I lack the **'Delete Messages'** privilege.\n\n"
+                    "Please promote my userbot account to an admin and grant this permission to proceed."
+                )
+                return
+            # --- END OF FIX ---
+            
+            await status_message.edit_text(
+                f"✅ **Permissions Confirmed!** (Status: `{member.status.name}`)\n\n`Starting scan for duplicates...`"
+            )
+            await asyncio.sleep(2)
 
-# MrSyD 🧩
-# By @Bot_Cracker 🎋
-# Developer @syd_xyz
+            # --- 3. Scan History and Deduplicate ---
+            async for msg in userbot.get_chat_history(chat.id):
+                total_scanned += 1
+                identifier = None
+
+                if msg.media and hasattr(msg.media, 'file_unique_id') and msg.media.file_unique_id:
+                    identifier = msg.media.file_unique_id
+                elif msg.text:
+                    identifier = msg.text.strip()
+
+                if identifier and identifier in seen_identifiers:
+                    duplicates_to_delete.append(msg.id)
+                elif identifier:
+                    seen_identifiers.add(identifier)
+                
+                if len(duplicates_to_delete) >= 100:
+                    deleted_count = len(duplicates_to_delete)
+                    await userbot.delete_messages(chat_id=chat.id, message_ids=duplicates_to_delete)
+                    total_deleted += deleted_count
+                    duplicates_to_delete.clear()
+                    await status_message.edit_text(
+                        f"⚙️ **In progress...**\n\n"
+                        f"Scanned: `{total_scanned}` messages\n"
+                        f"Deleted: `{total_deleted}` duplicates"
+                    )
+                    await asyncio.sleep(5)
+
+            if duplicates_to_delete:
+                deleted_count = len(duplicates_to_delete)
+                await userbot.delete_messages(chat_id=chat.id, message_ids=duplicates_to_delete)
+                total_deleted += deleted_count
+
+            # --- 4. Final Report ---
+            await status_message.edit_text(
+                f"✅ **Deduplication Complete!**\n\n"
+                f"**Channel:** {chat.title}\n"
+                f"**Total Messages Scanned:** `{total_scanned}`\n"
+                f"**Duplicate Messages Deleted:** `{total_deleted}`"
+            )
+
+    except FloodWait as e:
+        await status_message.edit_text(f"❌ **Rate Limit Exceeded.** Please wait `{e.value}` seconds before trying again.")
+    except Exception as e:
+        print(f"An unexpected ERROR occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        await status_message.edit_text(f"❌ **An unexpected error occurred.**\n\n`{e}`")
