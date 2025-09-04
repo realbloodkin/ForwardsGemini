@@ -37,6 +37,7 @@ async def unequify(client, message):
         try:
             user = await bot.get_chat_member(channel, message.from_user.id)
             if user.status in {"kicked", "left"}:
+               not_joined_channels.append(channel)
                not_joined_channels = []
         except UserNotParticipant:
             not_joined_channels.append(channel)
