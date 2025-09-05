@@ -13,7 +13,7 @@ if not MONGO_URI:
 # We create one single, shared client instance when the bot starts.
 motor_client = AsyncIOMotorClient(MONGO_URI)
 # IMPORTANT: Replace 'YourDatabaseName' with the actual name of your database in MongoDB.
-db = motor_client['YourDatabaseName'] 
+db = motor_client['ForwardsBot'] 
 
 # Accessing the collections through the shared client
 users_col = db['users']
