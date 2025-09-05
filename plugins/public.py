@@ -25,102 +25,74 @@ async def run(bot, message):
     channels = await db.get_user_channels(user_id)
     if not channels:
        return await message.reply_text("Please Set A To Channel In /settings Before Forwarding")
-
-    # --- This section has been commented out to remove the channel join check ---
-    # not_joined_channels = []
-    # for channel in SYD_CHANNELS:
-    #     try:
-    #         user = await bot.get_chat_member(channel, message.from_user.id)
-    #         if user.status in {"kicked", "left"}:
-    #             not_joined_channels.append(channel)
-    #     except UserNotParticipant:
-    #         not_joined_channels.append(channel)
-            
-    # if not_joined_channels:
-    #     # CORRECTED LIST COMPREHENSION #1
-    #     buttons = [
-    #         [
-    #             InlineKeyboardButton(
-    #                 text=f"✧ Jᴏɪɴ {channel.capitalize().replace('_', ' ')}✧",
-    #                 url=f"https://t.me/{channel}"
-    #             )
-    #         ]
-    #         for channel in not_joined_channels
-    #     ]
         
-    #     buttons.append(
-    #         [
-    #             InlineKeyboardButton(
-    #                 text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+bAsrcnckBNdkMjVi"
-    #             )
-    #         ]
-    #     )
-    #     buttons.append(
-    #         [
-    #             InlineKeyboardButton(
-    #                 text="☑ ᴊᴏɪɴᴇᴅ ☑", callback_data="check_subscription"
-    #             )
-    #         ]
-    #     )
-
-    #     text = "**Sᴏʀʀʏ, ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴊᴏɪɴ ɪɴ ᴏᴜʀ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟꜱ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ꜰᴇᴀᴛᴜʀᴇ, ᴩʟᴇᴀꜱᴇ ᴅᴏ ꜱᴏ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ,,... ⚡ .**"
-    #     return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
-        
-    if len(channels) > 1:
+    if len(channels) > 0:
        for channel in channels:
-          buttons.append([KeyboardButton(f"{channel['title']}")])
-          btn_data[channel['title']] = channel['chat_id']
-       buttons.append([KeyboardButton("cancel")]) 
-       _toid = await bot.ask(message.chat.id, Translation.TO_MSG.format(_bot['name'], _bot['username']), reply_markup=ReplyKeyboardMarkup(buttons, one_time_keyboard=True, resize_keyboard=True))
-       if _toid.text.startswith(('/', 'cancel')):
-          return await message.reply_text(Translation.CANCEL, reply_markup=ReplyKeyboardRemove())
-       to_title = _toid.text
-       toid = btn_data.get(to_title)
-       if not toid:
-          return await message.reply_text("Wrong Channel Choosen !", reply_markup=ReplyKeyboardRemove())
+          buttons.append([InlineKeyboardButton(f"{channel['title']}", callback_data=f"fwd_target_{channel['chat_id']}")])
+    
+       buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="close_btn")]) 
+       
+       await message.reply_text("<b><u>Cʜᴏᴏꜱᴇ Tᴀʀɢᴇᴛ Cʜᴀᴛ</u></b>\n\nCʜᴏᴏꜱᴇ Yᴏᴜʀ Tᴀʀɢᴇᴛ Cʜᴀᴛ Fʀᴏᴍ Tʜᴇ Gɪᴠᴇɴ Bᴜᴛᴛᴏɴꜱ.", reply_markup=InlineKeyboardMarkup(buttons))
     else:
-       toid = channels[0]['chat_id']
-       to_title = channels[0]['title']
-    fromid = await bot.ask(message.chat.id, Translation.FROM_MSG, reply_markup=ReplyKeyboardRemove())
+       return await message.reply_text("Please Set A To Channel In /settings Before Forwarding")
+
+@Client.on_callback_query(filters.regex(r'^fwd_target_'))
+async def get_target_chat(bot, query):
+    user_id = query.from_user.id
+    toid = int(query.data.split('_')[2])
+    
+    _bot = await db.get_bot(user_id)
+    channels = await db.get_user_channels(user_id)
+    to_title = next((c['title'] for c in channels if c['chat_id'] == toid), 'Unknown')
+    
+    await query.message.edit_text(Translation.FROM_MSG)
+    
+    try:
+        fromid = await bot.ask(query.message.chat.id, Translation.FROM_MSG, timeout=300)
+    except asyncio.exceptions.TimeoutError:
+        return await query.message.reply_text(Translation.CANCEL)
+        
     if fromid.text and fromid.text.startswith('/'):
-        await message.reply(Translation.CANCEL)
-        return 
+        return await fromid.reply(Translation.CANCEL)
+
     if fromid.text and not fromid.forward_date:
         regex = re.compile(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")
         match = regex.match(fromid.text.replace("?single", ""))
         if not match:
-            return await message.reply('Invalid Link')
+            return await fromid.reply('Invalid Link')
         chat_id = match.group(4)
         last_msg_id = int(match.group(5))
         if chat_id.isnumeric():
             chat_id  = int(("-100" + chat_id))
-    elif fromid.forward_from_chat.type in [enums.ChatType.CHANNEL]:
+    elif fromid.forward_from_chat and fromid.forward_from_chat.type in [enums.ChatType.CHANNEL]:
         last_msg_id = fromid.forward_from_message_id
         chat_id = fromid.forward_from_chat.username or fromid.forward_from_chat.id
         if last_msg_id == None:
-           return await message.reply_text("This May Be A Forwarded Message From A Group And Sended By Anonymous Admin. Instead Of This Please Send Last Message Link From Group")
+           return await fromid.reply_text("This May Be A Forwarded Message From A Group And Sended By Anonymous Admin. Instead Of This Please Send Last Message Link From Group")
     else:
-        await message.reply_text("Invalid !")
+        await fromid.reply_text("Invalid !")
         return 
+    
     try:
         title = (await bot.get_chat(chat_id)).title
     except (PrivateChat, ChannelPrivate, ChannelInvalid):
         title = "private" if fromid.text else fromid.forward_from_chat.title
     except (UsernameInvalid, UsernameNotModified):
-        return await message.reply('Invalid Link Specified.')
+        return await fromid.reply('Invalid Link Specified.')
     except Exception as e:
-        return await message.reply(f'Errors - {e}')
-    skipno = await bot.ask(message.chat.id, Translation.SKIP_MSG)
+        return await fromid.reply(f'Errors - {e}')
+    
+    skipno = await bot.ask(query.message.chat.id, Translation.SKIP_MSG, timeout=300)
     if skipno.text.startswith('/'):
-        await message.reply(Translation.CANCEL)
-        return
+        return await skipno.reply(Translation.CANCEL)
+        
     forward_id = f"{user_id}-{skipno.id}"
     buttons = [[
         InlineKeyboardButton('Yᴇꜱ', callback_data=f"start_public_{forward_id}"),
         InlineKeyboardButton('Nᴏ', callback_data="close_btn")
     ]]
     reply_markup = InlineKeyboardMarkup(buttons)
-    await message.reply_text(
+    await query.message.reply_text(
         text=Translation.DOUBLE_CHECK.format(botname=_bot['name'], botuname=_bot['username'], from_chat=title, to_chat=to_title, skip=skipno.text),
         disable_web_page_preview=True,
         reply_markup=reply_markup
