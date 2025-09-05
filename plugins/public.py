@@ -46,6 +46,9 @@ async def run(bot, message):
 
 @Client.on_callback_query(filters.regex(r'^fwd_target_'))
 async def get_target_chat(bot, query):
+    # Acknowledge the callback query to prevent a race condition and duplicate messages.
+    await query.answer()
+
     user_id = query.from_user.id
     toid = int(query.data.split('_')[2])
     
@@ -53,7 +56,11 @@ async def get_target_chat(bot, query):
     channels = await db.get_user_channels(user_id)
     to_title = next((c['title'] for c in channels if c['chat_id'] == toid), 'Unknown')
     
-    await query.message.edit_text(Translation.FROM_MSG)
+    # Delete the old message and send a new one to prevent duplication.
+    await query.message.delete()
+    
+    # Send the new message asking for the source chat link.
+    ask_msg = await bot.send_message(query.message.chat.id, Translation.FROM_MSG)
     
     try:
         fromid = await bot.ask(query.message.chat.id, Translation.FROM_MSG, timeout=300)
