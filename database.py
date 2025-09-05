@@ -1,9 +1,7 @@
-
-from os import environ 
-from config import Config
 import motor.motor_asyncio
 from pymongo import MongoClient
-
+from config import Config
+from os import environ 
 
 DB_NAME = Config.DB_NAME
 DB_URL = Config.DB_URL
@@ -137,9 +135,10 @@ class Database:
        return bool(channel)
     
     async def add_channel(self, user_id: int, chat_id: int, title, username):
-       channel = await self.in_channel(user_id, chat_id)
-       if channel:
-         return False
+       # Check if the channel already exists for this user
+       if await self.in_channel(user_id, chat_id):
+           return False
+       # Add the channel if it does not exist
        return await self.chl.insert_one({"user_id": user_id, "chat_id": chat_id, "title": title, "username": username})
     
     async def remove_channel(self, user_id: int, chat_id: int):
@@ -174,4 +173,3 @@ class Database:
        return self.nfy.find({})
      
 db = Database(DB_URL, DB_NAME)
-
