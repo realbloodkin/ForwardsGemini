@@ -11,15 +11,15 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
-# Secure configuration - these MUST be set in your Koyeb environment.
+# --- SECURE & FLEXIBLE CONFIGURATION ---
+# These variables MUST be set in your Koyeb environment.
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-BOT_NAME = os.environ.get("BOT_NAME", "TestoDosBot")
-BOT_USERNAME = os.environ.get("BOT_USERNAME")
+BOT_NAME = os.environ.get("BOT_NAME", "TestoDosBot") # Bot name can have a default
 OWNER_ID = int(os.environ.get("OWNER_ID"))
-SUPPORT_GROUP = os.environ.get("SUPPORT_GROUP")
 LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL"))
+# BOT_USERNAME and SUPPORT_GROUP have been removed as requested.
 
 class Bot(Client):
     def __init__(self):
@@ -71,6 +71,7 @@ class Bot(Client):
     async def start(self):
         await super().start()
         me = await self.get_me()
+        # The bot's username is now fetched dynamically after starting up.
         self.username = me.username
         self.id = me.id
         self.log_channel = LOG_CHANNEL
