@@ -3,7 +3,10 @@ import logging
 import asyncio
 import pyrogram
 from pyrogram import Client, enums
+# This import is necessary to use your database functions
 from database import db 
+# This is the new import required to run the connection test
+from database.db import init_database
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,7 +41,6 @@ class Bot(Client):
         self.LOGGER.info("Attempting to load persistent userbots from database...")
         all_users = await db.get_all_users()
         
-        # --- THIS LINE HAS BEEN CORRECTED ---
         async for user in all_users:
             user_id = user.get('id')
             if user_id not in self.userbots:
@@ -68,6 +70,11 @@ class Bot(Client):
                     self.LOGGER.error(f"Failed to start 'Command Userbot' for {user_id}: {e}")
 
     async def start(self):
+        # --- THE CRUCIAL ADDITION IS HERE ---
+        # This will run our definitive connection test before anything else.
+        await init_database()
+        # ------------------------------------
+        
         await super().start()
         me = await self.get_me()
         self.username = me.username
