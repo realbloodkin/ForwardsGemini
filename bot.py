@@ -1,9 +1,9 @@
 import os
 import logging
-import time
+import asyncio
 import pyrogram
 from pyrogram import Client, enums
-from database import db # Assuming your database module is accessible
+from database import db 
 
 logging.basicConfig(
     level=logging.INFO,
@@ -11,8 +11,7 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
-# --- Your original configuration variables ---
-# These will be read from your Koyeb environment.
+# Secure configuration - these MUST be set in your Koyeb environment.
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -24,7 +23,6 @@ LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL"))
 
 class Bot(Client):
     def __init__(self):
-        # --- Your original __init__ logic is preserved ---
         super().__init__(
             name=BOT_NAME,
             api_id=API_ID,
@@ -34,17 +32,12 @@ class Bot(Client):
             plugins={"root": "plugins"},
             sleep_threshold=5,
         )
-        
-        # --- INJECTION 1: Initialize the userbot dictionary ---
-        # This creates the shared context for all plugins.
+        # This nested dictionary will hold the two persistent userbot clients.
         self.userbots = {}
-        
-        # --- Your original logger attribute is preserved ---
         self.LOGGER = LOGGER
 
-    # --- INJECTION 2: New helper function to load userbots from DB ---
     async def start_userbots_from_storage(self):
-        """Loads all persistent userbots from both Settings (DB) and Commands (Configs)."""
+        """Loads all persistent userbots from the database on bot startup."""
         self.LOGGER.info("Attempting to load persistent userbots from database...")
         all_users = await db.get_all_users()
         for user in all_users:
@@ -52,7 +45,7 @@ class Bot(Client):
             if user_id not in self.userbots:
                 self.userbots[user_id] = {}
 
-            # 1. Load the "Settings Userbot" (from main bots table)
+            # 1. Load the "Settings Userbot" (from the main `bots` table)
             bot_data = await db.get_bot(user_id)
             if bot_data and bot_data.get('session'):
                 try:
@@ -63,7 +56,7 @@ class Bot(Client):
                 except Exception as e:
                     self.LOGGER.error(f"Failed to start 'Settings Userbot' for {user_id}: {e}")
 
-            # 2. Load the "Command Userbot" (from user configs table)
+            # 2. Load the "Command Userbot" (from the user `configs` table)
             configs = await db.get_configs(user_id)
             cmd_session = configs.get('command_userbot_session')
             if cmd_session:
@@ -76,7 +69,6 @@ class Bot(Client):
                     self.LOGGER.error(f"Failed to start 'Command Userbot' for {user_id}: {e}")
 
     async def start(self):
-        # --- Your original start logic is preserved ---
         await super().start()
         me = await self.get_me()
         self.username = me.username
@@ -84,10 +76,8 @@ class Bot(Client):
         self.log_channel = LOG_CHANNEL
         self.owner_id = OWNER_ID
         
-        # --- INJECTION 3: Call the new userbot loader function ---
         await self.start_userbots_from_storage()
         
-        # --- Your original logging and messages are preserved ---
         self.LOGGER.info(f"{me.first_name} with for Pyrogram v{pyrogram.__version__} (Layer {pyrogram.raw.all.layer}) started on @{me.username}.")
         self.LOGGER.info("Pyrogram v{pyrogram.__version__}")
         await self.send_message(
@@ -96,14 +86,11 @@ class Bot(Client):
         )
 
     async def stop(self, *args):
-        # --- INJECTION 4: Gracefully stop all running userbots ---
         for user_id, bots in list(self.userbots.items()):
             for bot_type, client in list(bots.items()):
                 if client.is_connected:
                     await client.stop()
                     self.LOGGER.info(f"Stopped '{bot_type}' userbot for user {user_id}.")
-
-        # --- Your original stop logic is preserved ---
         await super().stop()
         self.LOGGER.info("Bot stopped. Bye.")
 
