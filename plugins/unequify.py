@@ -2,7 +2,20 @@ import asyncio
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ForceReply
 
+# This dictionary holds the user's progress through the multi-step command.
 user_context = {} 
+
+# --- THIS IS THE FIX: A NEW CUSTOM FILTER ---
+# This filter checks if a user is currently in the middle of the unequify setup process.
+async def is_in_unequify_flow(_, __, message: Message):
+    context = user_context.get(message.from_user.id)
+    if context and context.get("step") in ["awaiting_chat_selection", "awaiting_start_id", "awaiting_stop_id"]:
+        return True
+    return False
+
+# Create the filter object that we can use in our handlers.
+in_unequify_flow_filter = filters.create(is_in_unequify_flow)
+# --- END OF THE FIX ---
 
 # --- Keyboards & Constants (Complete) ---
 OPTION_LABELS = ["Text", "Photos/Videos", "Audio", "Documents", "Stickers"]
@@ -90,13 +103,12 @@ async def proceed_to_chat_listing(message: Message, userbot_client: Client, bot_
         await status_message.edit_text(f"❌ **Error:**\n`{e}`")
         if user_id in user_context: del user_context[user_id]
 
-# --- Conversational Handlers (Full, Robust Version) ---
-@Client.on_message(filters.private & ~filters.command(["unequify", "cancel", "adduserbot", "removeuserbot", "settings", "forward_all", "past_forward"]))
+# --- THE FIX IS APPLIED HERE: This handler is now much smarter ---
+@Client.on_message(filters.private & in_unequify_flow_filter)
 async def handle_unequify_text_input(bot: Client, message: Message):
     user_id = message.from_user.id
-    context = user_context.get(user_id)
-    if not context: return
-
+    context = user_context.get(user_id) # We know context exists because the filter passed
+    
     if context.get("step") == "awaiting_chat_selection":
         try:
             selection = int(message.text)
@@ -106,10 +118,10 @@ async def handle_unequify_text_input(bot: Client, message: Message):
         context.update({"step": "awaiting_range_selection", "chat_id": chat_id})
         await message.reply_text(f"Selected chat ID: `{chat_id}`.\nConfigure scan range.", reply_markup=create_range_keyboard(chat_id))
 
-    elif context.get("step") in ["awaiting_start_id", "awaiting_stop_id"] and message.reply_to_message:
+    elif context.get("step") in ["awaiting_start_id", "awaiting_stop_id"]:
         try:
             msg_id = int(message.text)
-            if msg_id < 0: raise ValueError # Message IDs can't be negative
+            if msg_id < 0: raise ValueError
         except (ValueError, TypeError):
             return await message.reply_text("Invalid Message ID. Please enter a positive number.")
         
@@ -120,10 +132,12 @@ async def handle_unequify_text_input(bot: Client, message: Message):
         else: stop_id = msg_id
             
         context.update({"step": "awaiting_range_selection", "start_id": start_id, "stop_id": stop_id})
-        await bot.edit_message_text(user_id, context["status_message_id"], f"Selected chat ID: `{chat_id}`.", reply_markup=create_range_keyboard(chat_id, start_id, stop_id))
+        # Check if status_message_id was stored before trying to edit
+        if "status_message_id" in context:
+            await bot.edit_message_text(user_id, context["status_message_id"], f"Selected chat ID: `{chat_id}`.", reply_markup=create_range_keyboard(chat_id, start_id, stop_id))
         await message.delete()
-        await message.reply_to_message.delete()
 
+# --- The rest of the file remains the same ---
 @Client.on_callback_query(filters.regex("^unequify_"))
 async def handle_unequify_callbacks(bot: Client, cq: CallbackQuery):
     user_id = cq.from_user.id
@@ -158,7 +172,6 @@ async def cancel_command(bot: Client, message: Message):
     else:
         await message.reply_text("No active unequify operation to cancel.")
 
-# --- The Main Worker Function (Final Version) ---
 async def start_deduplication_worker(bot: Client, cq: CallbackQuery):
     user_id = cq.from_user.id
     context = user_context.get(user_id)
