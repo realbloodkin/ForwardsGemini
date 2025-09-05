@@ -3,15 +3,19 @@ from pyrogram import Client, filters, enums
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import UserNotParticipant
 from database import db 
-from config import API_ID, API_HASH 
+# The problematic import from 'config' has been removed.
 
 # This dictionary holds the user's progress during the setup phase.
 public_context = {}
 
 @Client.on_message(filters.command(["forward_all", "past_forward"]) & filters.private)
 async def past_forward_command(bot: Client, message: Message, chosen_client_info: dict = None):
+    """
+    Handles the entire past-forwarding process, including client selection.
+    """
     user_id = message.from_user.id
     
+    # --- BLOCK 1: CLIENT DISCOVERY & SELECTION ---
     if chosen_client_info is None:
         if user_id in public_context and public_context.get('task') and not public_context[user_id]['task'].done():
             return await message.reply_text("A past-forwarding task is already running.")
@@ -42,12 +46,21 @@ async def past_forward_command(bot: Client, message: Message, chosen_client_info
             await message.reply_text("Multiple clients found. Choose one for this task:", reply_markup=InlineKeyboardMarkup(buttons))
             return 
     
+    # --- BLOCK 2: FORWARDING LOGIC ---
     forward_client = None
     try:
         client_type = chosen_client_info['type']
         if client_type == 'bot_token':
             bot_data = await db.get_bot(user_id)
-            forward_client = Client(name=f"pastfwd_bot_{user_id}", bot_token=bot_data['token'], api_id=API_ID, api_hash=API_HASH, in_memory=True)
+            # --- THE FIX IS HERE ---
+            # It now gets the API_ID and API_HASH from the main bot client.
+            forward_client = Client(
+                name=f"pastfwd_bot_{user_id}", 
+                bot_token=bot_data['token'], 
+                api_id=bot.api_id, 
+                api_hash=bot.api_hash, 
+                in_memory=True
+            )
         elif client_type == 'db_userbot':
             forward_client = bot.userbots[user_id]['db']
         elif client_type == 'cmd_userbot':
