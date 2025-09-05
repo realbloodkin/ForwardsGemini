@@ -31,7 +31,8 @@ def create_selection_keyboard(selection_state: str, target_channel_id: str) -> I
     
     # Action buttons
     buttons.append([
-        InlineKeyboardButton("🚀 Start Scan", callback_data=f"start_{selection_state}_{target_channel_id}"),
+        # Changed callback data to be more specific to this plugin
+        InlineKeyboardButton("🚀 Start Scan", callback_data=f"start_dedup_{selection_state}_{target_channel_id}"),
         InlineKeyboardButton("❌ Cancel", callback_data="cancel")
     ])
     return InlineKeyboardMarkup(buttons)
@@ -88,7 +89,8 @@ async def cancel_operation(bot: Client, callback_query: CallbackQuery):
     """Handles the cancel button click."""
     await callback_query.message.edit_text("Operation cancelled.")
 
-@Client.on_callback_query(filters.regex("^start_"))
+# Changed regex to be more specific to this plugin
+@Client.on_callback_query(filters.regex("^start_dedup_"))
 async def start_deduplication(bot: Client, callback_query: CallbackQuery):
     """
     The main worker function, triggered after the user clicks "Start Scan".
@@ -97,7 +99,7 @@ async def start_deduplication(bot: Client, callback_query: CallbackQuery):
     status_message = callback_query.message
     await status_message.edit_text("`Processing your request...`", reply_markup=None)
 
-    _, selection_state, target_channel_input = callback_query.data.split("_", 2)
+    _, _, selection_state, target_channel_input = callback_query.data.split("_", 3)
     
     # Convert numeric chat IDs to integers
     try:
