@@ -5,6 +5,9 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.errors import FloodWait, ChannelInvalid, UsernameNotOccupied, UsernameInvalid, PeerIdInvalid, UserAlreadyParticipant
 
+# Import the centralized client handling from the test plugin
+from .test import CLIENT, start_clone_bot
+
 # --- Environment Variable ---
 # Ensure this is set in your Koyeb service settings.
 USERBOT_SESSION_STRING = os.environ.get("USERBOT_SESSION_STRING")
@@ -118,7 +121,9 @@ async def start_deduplication(bot: Client, callback_query: CallbackQuery):
     total_deleted = 0
 
     try:
-        async with Client(name="userbot_session", session_string=USERBOT_SESSION_STRING) as userbot:
+        # Using the centralized client handler
+        async with CLIENT().client(USERBOT_SESSION_STRING, user=True) as userbot:
+            userbot = await start_clone_bot(userbot)
             chat = None
             try:
                 chat = await userbot.get_chat(target_channel)
@@ -159,6 +164,8 @@ async def start_deduplication(bot: Client, callback_query: CallbackQuery):
                 
                 # Dynamic identifier based on user selection
                 if selection_state[0] == '1' and msg.text:
+                    # Note: Simple text comparison can lead to false positives. 
+                    # For a more robust solution, consider hashing the content.
                     identifier = msg.text.strip()
                 elif selection_state[1] == '1' and (msg.photo or msg.video) and msg.media:
                     identifier = getattr(msg, msg.media.value).file_unique_id
