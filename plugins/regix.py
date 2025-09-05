@@ -82,11 +82,20 @@ async def pub_(bot, message):
           pling=0
           await edit(m, 'Pʀᴏɢʀᴇꜱꜱꜱɪɴɢ', 10, sts)
           print(f"Starting Forwarding Process... From :{sts.get('FROM')} To: {sts.get('TO')} Total: {sts.get('limit')} Stats : {sts.get('skip')})")
+          
+          # Fetch messages in batches and reverse them to forward in chronological order
+          messages_to_process = []
           async for message in client.get_chat_history(
             chat_id=sts.get('FROM'), 
             limit=int(sts.get('limit')), 
             offset=int(sts.get('skip')) if sts.get('skip') else 0
             ):
+              messages_to_process.append(message)
+          
+          # Reverse the list to get oldest messages first
+          messages_to_process.reverse()
+          
+          for message in messages_to_process:
                 if await is_cancelled(client, user, m, sts):
                    return
                 if pling %20 == 0: 
