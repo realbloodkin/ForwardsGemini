@@ -56,16 +56,14 @@ async def get_target_chat(bot, query):
     channels = await db.get_user_channels(user_id)
     to_title = next((c['title'] for c in channels if c['chat_id'] == toid), 'Unknown')
     
-    # Delete the old message and send a new one to prevent duplication.
+    # Use bot.ask() to both send the message and wait for a reply, preventing duplicates.
+    # We will also delete the original button message.
     await query.message.delete()
-    
-    # Send the new message asking for the source chat link.
-    ask_msg = await bot.send_message(query.message.chat.id, Translation.FROM_MSG)
     
     try:
         fromid = await bot.ask(query.message.chat.id, Translation.FROM_MSG, timeout=300)
     except asyncio.exceptions.TimeoutError:
-        return await query.message.reply_text(Translation.CANCEL)
+        return await bot.send_message(query.message.chat.id, Translation.CANCEL)
         
     if fromid.text and fromid.text.startswith('/'):
         return await fromid.reply(Translation.CANCEL)
@@ -107,7 +105,8 @@ async def get_target_chat(bot, query):
         InlineKeyboardButton('Nᴏ', callback_data="close_btn")
     ]]
     reply_markup = InlineKeyboardMarkup(buttons)
-    await query.message.reply_text(
+    await bot.send_message(
+        chat_id=query.message.chat.id,
         text=Translation.DOUBLE_CHECK.format(botname=_bot['name'], botuname=_bot['username'], from_chat=title, to_chat=to_title, skip=skipno.text),
         disable_web_page_preview=True,
         reply_markup=reply_markup
