@@ -27,8 +27,16 @@ async def run(bot, message):
        return await message.reply_text("Please Set A To Channel In /settings Before Forwarding")
         
     if len(channels) > 0:
+       # Use a set to store unique channel IDs to prevent duplicate buttons
+       unique_channels = []
+       seen_ids = set()
        for channel in channels:
-          buttons.append([InlineKeyboardButton(f"{channel['title']}", callback_data=f"fwd_target_{channel['chat_id']}")])
+           if channel['chat_id'] not in seen_ids:
+               unique_channels.append(channel)
+               seen_ids.add(channel['chat_id'])
+               
+       for channel in unique_channels:
+           buttons.append([InlineKeyboardButton(f"{channel['title']}", callback_data=f"fwd_target_{channel['chat_id']}")])
     
        buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="close_btn")]) 
        
