@@ -4,17 +4,20 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 
-# This is the new, robust initialization block.
+# We declare these as global so they can be initialized by the test function
 motor_client = None
 db = None
+users_col = None
+bots_col = None
+channels_col = None
+configs_col = None
 
 async def init_database():
     """
     Initializes the database connection and performs a connection test.
     This function will be called from your bot's startup lifecycle.
     """
-    global motor_client, db
-    global users_col, bots_col, channels_col, configs_col
+    global motor_client, db, users_col, bots_col, channels_col, configs_col
 
     # 1. Prove that the environment variable is being read.
     MONGO_URI = os.environ.get("DATABASE_URI")
@@ -24,20 +27,19 @@ async def init_database():
         sys.exit(1)
     
     print("--- DATABASE DIAGNOSTIC ---")
-    print(f"SUCCESS: Found DATABASE_URI.")
+    print("SUCCESS: Found DATABASE_URI.")
     print("Attempting to connect to MongoDB...")
 
     # 2. Force an immediate connection test.
     try:
         motor_client = AsyncIOMotorClient(MONGO_URI)
-        # The 'ping' command is a lightweight way to force a connection and check authentication.
         await motor_client.admin.command('ping')
         
         print("SUCCESS: MongoDB connection and authentication established.")
         
-        # IMPORTANT: Replace 'YourDatabaseName' with the actual name of your database.
-        # If you don't have one yet, a good name is 'forwards_bot_db'.
-        db = motor_client['YourDatabaseName'] 
+        # IMPORTANT: Replace 'YourDatabaseName' with your actual database name.
+        db_name = "forwardsgemini_db" # A sensible default name
+        db = motor_client[db_name] 
         print(f"SUCCESS: Using database '{db.name}'.")
         print("--------------------------")
 
@@ -64,8 +66,7 @@ async def init_database():
         traceback.print_exc()
         sys.exit(1)
 
-# --- Your original database functions remain below ---
-# They will use the globally initialized collection objects.
+# --- Your original database functions, now using the initialized collections ---
 
 async def is_user_new(user_id: int) -> bool:
     return await users_col.find_one({'id': user_id}) is None
@@ -84,4 +85,14 @@ async def get_configs(user_id: int):
     return user_configs or {}
 async def update_configs(user_id: int, key: str, value):
     await configs_col.update_one({'id': user_id}, {'$set': {key: value}}, upsert=True)
-# ...and so on for all your other database functions.
+async def get_user_channels(user_id: int):
+    return channels_col.find({'user_id': user_id})
+async def add_channel(user_id: int, chat_id: int, title: str, username: str):
+    if await channels_col.find_one({'user_id': user_id, 'chat_id': str(chat_id)}):
+        return False
+    await channels_col.insert_one({'user_id': user_id, 'chat_id': str(chat_id), 'title': title, 'username': username})
+    return True
+async def remove_channel(user_id: int, chat_id: str):
+    await channels_col.delete_one({'user_id': user_id, 'chat_id': chat_id})
+async def get_channel_details(user_id: int, chat_id: str):
+    return await channels_col.find_one({'user_id': user_id, 'chat_id': chat_id})
