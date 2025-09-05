@@ -4,5 +4,5 @@ TgCrypto
 Dnspython
 aiohttp
 pytz
-Flask==3.0.3
-gunicorn==22.0.0
+fastapi==0.111.0
+uvicorn==0.30.1
