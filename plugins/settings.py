@@ -1,4 +1,3 @@
-
 import asyncio 
 from database import db
 from config import Config
@@ -9,8 +8,6 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 CLIENT = CLIENT()
 
-
-
 @Client.on_message(filters.private & filters.command(['settings']))
 async def settings(client, message):
     text="<b>Cʜᴀɴɢᴇ Yᴏᴜʀ Sᴇᴛᴛɪɴɢꜱ Aꜱ Pᴇʀ Yᴏᴜʀ Nᴇᴇᴅꜱ! ❄️</b>"
@@ -19,10 +16,7 @@ async def settings(client, message):
         reply_markup=main_buttons(),
         quote=True
     )
-    
 
-
-    
 @Client.on_callback_query(filters.regex(r'^settings'))
 async def settings_query(bot, query):
   user_id = query.from_user.id
@@ -56,7 +50,7 @@ async def settings_query(bot, query):
      bot = await CLIENT.add_bot(bot, query)
      if bot != True: return
      await query.message.reply_text(
-        "<b>Bᴏᴛ Tᴏᴋᴇɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Aᴅᴅᴇᴅ Tᴏ Dᴀᴛᴀʙᴀꜱᴇ ✓</b>",
+        "<b>Bᴏᴛ Tᴏᴋᴇɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Aᴅᴅᴇᴅ Tᴏ Dᴀᴛᴀʙᴀꜱᴇ ✓</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
   
   elif type=="adduserbot":
@@ -64,7 +58,7 @@ async def settings_query(bot, query):
      user = await CLIENT.add_session(bot, query)
      if user != True: return
      await query.message.reply_text(
-        "<b>Sᴇꜱꜱɪᴏɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Aᴅᴅᴇᴅ Tᴏ Dᴀᴛᴀʙᴀꜱᴇ ✓</b>",
+        "<b>Sᴇꜱꜱɪᴏɴ Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Aᴅᴅᴇᴅ Tᴏ Dᴀᴛᴀʙᴀꜱᴇ ✓</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
       
   elif type=="channels":
@@ -99,11 +93,19 @@ async def settings_query(bot, query):
             title = chat_ids.forward_from_chat.title
             username = chat_ids.forward_from_chat.username
             username = "@" + username if username else "private"
-         chat = await db.add_channel(user_id, chat_id, title, username)
-         await chat_ids.delete()
-         await text.edit_text(
-            "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓" if chat else "Tʜɪꜱ Cʜᴀɴɴᴇʟ Iꜱ Aʟʀᴇᴀᴅʏ Aᴅᴅᴇᴅ",
-            reply_markup=InlineKeyboardMarkup(buttons))
+            
+         # Check for duplicate channel before adding
+         if await db.in_channel(user_id, chat_id):
+             await chat_ids.delete()
+             await text.edit_text(
+                 "Tʜɪꜱ Cʜᴀɴɴᴇʟ Iꜱ Aʟʀᴇᴀᴅʏ Aᴅᴅᴇᴅ!",
+                 reply_markup=InlineKeyboardMarkup(buttons))
+         else:
+             await db.add_channel(user_id, chat_id, title, username)
+             await chat_ids.delete()
+             await text.edit_text(
+                 "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+                 reply_markup=InlineKeyboardMarkup(buttons))
      except asyncio.exceptions.TimeoutError:
          await text.edit_text('Pʀᴏᴄᴇꜱꜱ Hᴀꜱ Bᴇᴇɴ Cᴀɴᴄᴇʟʟᴇᴅ Aᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ Dᴜᴇ Tᴏ Nᴏ Rᴇꜱᴩᴏɴꜱᴇ!', reply_markup=InlineKeyboardMarkup(buttons))
   
@@ -120,7 +122,7 @@ async def settings_query(bot, query):
   elif type=="removebot":
      await db.remove_bot(user_id)
      await query.message.edit_text(
-        "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+        "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
         reply_markup=InlineKeyboardMarkup(buttons))
                                              
   elif type.startswith("editchannels"): 
@@ -137,7 +139,7 @@ async def settings_query(bot, query):
      chat_id = type.split('_')[1]
      await db.remove_channel(user_id, chat_id)
      await query.message.edit_text(
-        "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+        "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
         reply_markup=InlineKeyboardMarkup(buttons))
                                
   elif type=="caption":
@@ -172,7 +174,7 @@ async def settings_query(bot, query):
   elif type=="deletecaption":
      await update_configs(user_id, 'caption', None)
      await query.message.edit_text(
-        "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+        "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
         reply_markup=InlineKeyboardMarkup(buttons))
                               
   elif type=="addcaption":
@@ -195,7 +197,7 @@ async def settings_query(bot, query):
          await update_configs(user_id, 'caption', caption.text)
          await caption.delete()
          await text.edit_text(
-            "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+            "Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
             reply_markup=InlineKeyboardMarkup(buttons))
      except asyncio.exceptions.TimeoutError:
          await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=InlineKeyboardMarkup(buttons))
@@ -228,7 +230,7 @@ async def settings_query(bot, query):
             return await txt.edit_text("Iɴᴠᴀʟɪᴅ Bᴜᴛᴛᴏɴ ⛒")
          await update_configs(user_id, 'button', ask.text.html)
          await ask.delete()
-         await txt.edit_text("Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Bᴜᴛᴛᴏɴ Aᴅᴅᴇᴅ ✓",
+         await txt.edit_text("Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Bᴜᴛᴛᴏɴ Aᴅᴅᴇᴅ ✓",
             reply_markup=InlineKeyboardMarkup(buttons))
      except asyncio.exceptions.TimeoutError:
          await txt.edit_text('Process Has Been Automatically Cancelled', reply_markup=InlineKeyboardMarkup(buttons))
@@ -275,7 +277,7 @@ async def settings_query(bot, query):
         return await uri.reply("Iɴᴠᴀʟɪᴅ MᴏɴɢᴏDB Uʀʟ ⛒, Aᴠᴏᴏᴅ '/' Iɴ Eɴᴅ Iꜰ Tʜᴇʀᴇ Iᴛ Iꜱ Aᴠᴀɪʟᴀʙʟᴇ",
                    reply_markup=InlineKeyboardMarkup(buttons))
      await update_configs(user_id, 'db_uri', uri.text)
-     await uri.reply("Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Dᴀᴛᴀʙᴀꜱᴇ Uʀʟ Aᴅᴅᴇᴅ ✓",
+     await uri.reply("Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Dᴀᴛᴀʙᴀꜱᴇ Uʀʟ Aᴅᴅᴇᴅ ✓",
              reply_markup=InlineKeyboardMarkup(buttons))
   
   elif type=="seeurl":
@@ -324,8 +326,8 @@ async def settings_query(bot, query):
     await update_configs(user_id, 'file_size', size)
     i, limit = size_limit((await get_configs(user_id))['size_limit'])
     await query.message.edit_text(
-       f'<b><u>Sɪᴢᴇ Lɪᴍɪᴛ</u></b>\n\nYᴏᴜ Fᴏᴡᴀʀᴅ Tᴏ Fᴏᴡᴀʀᴅ\n\nSᴛᴀᴛᴜꜱ : Fɪʟᴇꜱ Wɪᴛʜ {limit} `{size} ᴍʙ` Wɪʟʟ Bᴇ Fᴏʀᴡᴀʀᴅ',
-       reply_markup=size_button(size))
+       f'<b><u>Sɪᴢᴇ Lɪᴍɪᴛ</u></b>\n\nYᴏᴜ Fᴏᴡᴀʀᴅ Tᴏ Fᴏᴡᴀʀᴅ\n\nSᴛᴀᴛᴜꜱ : Fɪʟᴇꜱ Wɪᴛʜ {limit} `{size} ᴍʙ` Wɪʟʟ Fᴏʀᴡᴀʀᴅ',
+       reply_markup=size_button(int(size)))
   
   elif type.startswith('update_limit'):
     i, limit, size = type.split('-')
@@ -351,7 +353,7 @@ async def settings_query(bot, query):
         extension = extensions
     await update_configs(user_id, 'extension', extension)
     await ext.reply_text(
-        f"Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+        f"Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
         reply_markup=InlineKeyboardMarkup(buttons))
       
   elif type == "get_extension":
@@ -384,7 +386,7 @@ async def settings_query(bot, query):
         keyword = keywords
     await update_configs(user_id, 'keywords', keyword)
     await ask.reply_text(
-        f"Sᴜᴄᴄᴇꜱꜱꜰᴜʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
+        f"Sᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ Uᴩᴅᴀᴛᴇᴅ ✓",
         reply_markup=InlineKeyboardMarkup(buttons))
   
   elif type == "get_keyword":
@@ -578,4 +580,3 @@ async def next_filters_buttons(user_id):
                     callback_data="settings#main")
        ]]
   return InlineKeyboardMarkup(buttons) 
-   
