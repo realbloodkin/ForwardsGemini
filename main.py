@@ -1,32 +1,43 @@
+import os
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from bot import Bot # Your existing Bot class from bot.py
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
-# This special "lifespan" function is the core of the solution.
-# It tells FastAPI what to do on startup and shutdown.
+# --- Minimal Configuration ---
+# This uses only the three essential variables needed to connect.
+API_ID = int(os.environ.get("API_ID"))
+API_HASH = os.environ.get("API_HASH")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+# We create the bot instance directly here for simplicity.
+bot_app = Client("TestBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+@bot_app.on_message(filters.command("ping"))
+async def ping(_, message: Message):
+    """A simple command with no dependencies to test the core connection."""
+    await message.reply_text("Pong! The core FastAPI + Pyrogram architecture is working.", quote=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- On Startup ---
-    print("Web server is starting up...")
-    # Initialize your Pyrogram Bot
-    bot_app = Bot()
-    # Start the bot. It will run in the same event loop as the web server.
+    # On Startup
+    print("--- MVB STARTUP ---")
+    print("Starting minimal Pyrogram client...")
     await bot_app.start()
-    print("Pyrogram bot has started successfully.")
+    print("Minimal Pyrogram client started successfully.")
     
-    yield # The web server runs here
+    yield
     
-    # --- On Shutdown ---
-    print("Web server is shutting down...")
-    # Gracefully stop the bot.
+    # On Shutdown
+    print("--- MVB SHUTDOWN ---")
+    print("Stopping minimal Pyrogram client...")
     await bot_app.stop()
-    print("Pyrogram bot has stopped.")
+    print("Minimal Pyrogram client stopped.")
 
-# Initialize the FastAPI web app with our new lifespan manager
+# Initialize the FastAPI web app with the lifespan manager
 web_app = FastAPI(lifespan=lifespan)
 
 @web_app.get("/")
 def read_root():
-    # This is the endpoint Render will check to see if your service is alive.
-    return {"status": "Bot is running"}
+    return {"status": "Minimum Viable Bot is running"}
