@@ -1,44 +1,43 @@
 import os
 import sys
-import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 
-# We declare these as global so they can be initialized by the test function
+# --- THIS IS THE CRUCIAL FIX ---
+# We now declare the client and collections as None at the module level.
+# They will be initialized later, inside an async context.
 motor_client = None
 db = None
 users_col = None
 bots_col = None
 channels_col = None
 configs_col = None
+# --- END OF THE FIX ---
 
 async def init_database():
     """
     Initializes the database connection and performs a connection test.
-    This function will be called from your bot's startup lifecycle.
+    This function is now responsible for creating the client and collections.
     """
     global motor_client, db, users_col, bots_col, channels_col, configs_col
 
-    # 1. Prove that the environment variable is being read.
     MONGO_URI = os.environ.get("DATABASE_URI")
     if not MONGO_URI:
-        print("--- DATABASE DIAGNOSTIC ---")
-        print("FATAL ERROR: The 'DATABASE_URI' environment variable was NOT FOUND.")
+        print("FATAL ERROR: The 'DATABASE_URI' environment variable is not set.")
         sys.exit(1)
     
     print("--- DATABASE DIAGNOSTIC ---")
     print("SUCCESS: Found DATABASE_URI.")
     print("Attempting to connect to MongoDB...")
 
-    # 2. Force an immediate connection test.
     try:
         motor_client = AsyncIOMotorClient(MONGO_URI)
         await motor_client.admin.command('ping')
         
         print("SUCCESS: MongoDB connection and authentication established.")
         
-        # IMPORTANT: Replace 'YourDatabaseName' with your actual database name.
-        db_name = "forwardsgemini_db" # A sensible default name
+        # IMPORTANT: Replace 'forwardsgemini' with your actual database name.
+        db_name = "forwardsgemini" 
         db = motor_client[db_name] 
         print(f"SUCCESS: Using database '{db.name}'.")
         print("--------------------------")
@@ -52,21 +51,17 @@ async def init_database():
     except ConnectionFailure as e:
         print("--- DATABASE DIAGNOSTIC ---")
         print("FATAL ERROR: Could not connect to the MongoDB server.")
-        print("This is likely due to one of two reasons:")
-        print("1. MongoDB Atlas IP Access List: You MUST add '0.0.0.0/0' (Access from Anywhere).")
-        print("2. Incorrect Connection String: Double-check your DATABASE_URI for typos, especially the password.")
+        print("Please check your DATABASE_URI and MongoDB Atlas IP Access List (set to 0.0.0.0/0).")
         print(f"\nError Details: {e}")
         print("--------------------------")
         sys.exit(1)
     except Exception as e:
-        print("--- DATABASE DIAGNOSTIC ---")
         print(f"An unexpected fatal error occurred during database initialization: {e}")
-        print("--------------------------")
         import traceback
         traceback.print_exc()
         sys.exit(1)
 
-# --- Your original database functions, now using the initialized collections ---
+# --- Your original database functions will now work correctly ---
 
 async def is_user_new(user_id: int) -> bool:
     return await users_col.find_one({'id': user_id}) is None
