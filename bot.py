@@ -3,10 +3,9 @@ import logging
 import asyncio
 import pyrogram
 from pyrogram import Client, enums
-# This import is necessary to use your database functions
-from database import db 
-# This is the new import required to run the connection test
-from database.db import init_database
+# --- THIS IS THE FIX ---
+# It now correctly imports from the `database.py` file in your root folder.
+from database import db, init_database
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,7 +13,7 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
-# Secure configuration from your Koyeb environment.
+# Secure configuration from your Render environment.
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -37,7 +36,6 @@ class Bot(Client):
         self.LOGGER = LOGGER
 
     async def start_userbots_from_storage(self):
-        """Loads all persistent userbots from the database on bot startup."""
         self.LOGGER.info("Attempting to load persistent userbots from database...")
         all_users = await db.get_all_users()
         
@@ -46,7 +44,7 @@ class Bot(Client):
             if user_id not in self.userbots:
                 self.userbots[user_id] = {}
 
-            # 1. Load the "Settings Userbot"
+            # Load the "Settings Userbot"
             bot_data = await db.get_bot(user_id)
             if bot_data and bot_data.get('session'):
                 try:
@@ -57,7 +55,7 @@ class Bot(Client):
                 except Exception as e:
                     self.LOGGER.error(f"Failed to start 'Settings Userbot' for {user_id}: {e}")
 
-            # 2. Load the "Command Userbot"
+            # Load the "Command Userbot"
             configs = await db.get_configs(user_id)
             cmd_session = configs.get('command_userbot_session')
             if cmd_session:
@@ -70,10 +68,8 @@ class Bot(Client):
                     self.LOGGER.error(f"Failed to start 'Command Userbot' for {user_id}: {e}")
 
     async def start(self):
-        # --- THE CRUCIAL ADDITION IS HERE ---
         # This will run our definitive connection test before anything else.
         await init_database()
-        # ------------------------------------
         
         await super().start()
         me = await self.get_me()
