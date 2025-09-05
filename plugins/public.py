@@ -25,44 +25,46 @@ async def run(bot, message):
     channels = await db.get_user_channels(user_id)
     if not channels:
        return await message.reply_text("Please Set A To Channel In /settings Before Forwarding")
-    not_joined_channels = []
-    for channel in SYD_CHANNELS:
-        try:
-            user = await bot.get_chat_member(channel, message.from_user.id)
-            if user.status in {"kicked", "left"}:
-                not_joined_channels.append(channel)
-        except UserNotParticipant:
-            not_joined_channels.append(channel)
-            
-    if not_joined_channels:
-        # CORRECTED LIST COMPREHENSION #1
-        buttons = [
-            [
-                InlineKeyboardButton(
-                    text=f"✧ Jᴏɪɴ {channel.capitalize().replace('_', ' ')}✧",
-                    url=f"https://t.me/{channel}"
-                )
-            ]
-            for channel in not_joined_channels
-        ]
-        
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+bAsrcnckBNdkMjVi"
-                )
-            ]
-        )
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text="☑ ᴊᴏɪɴᴇᴅ ☑", callback_data="check_subscription"
-                )
-            ]
-        )
 
-        text = "**Sᴏʀʀʏ, ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴊᴏɪɴ ɪɴ ᴏᴜʀ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟꜱ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ꜰᴇᴀᴛᴜʀᴇ, ᴩʟᴇᴀꜱᴇ ᴅᴏ ꜱᴏ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ,,... ⚡ .**"
-        return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
+    # --- This section has been commented out to remove the channel join check ---
+    # not_joined_channels = []
+    # for channel in SYD_CHANNELS:
+    #     try:
+    #         user = await bot.get_chat_member(channel, message.from_user.id)
+    #         if user.status in {"kicked", "left"}:
+    #             not_joined_channels.append(channel)
+    #     except UserNotParticipant:
+    #         not_joined_channels.append(channel)
+            
+    # if not_joined_channels:
+    #     # CORRECTED LIST COMPREHENSION #1
+    #     buttons = [
+    #         [
+    #             InlineKeyboardButton(
+    #                 text=f"✧ Jᴏɪɴ {channel.capitalize().replace('_', ' ')}✧",
+    #                 url=f"https://t.me/{channel}"
+    #             )
+    #         ]
+    #         for channel in not_joined_channels
+    #     ]
+        
+    #     buttons.append(
+    #         [
+    #             InlineKeyboardButton(
+    #                 text="✧ Jᴏɪɴ Bᴀᴄᴋ Uᴩ ✧", url="https://t.me/+bAsrcnckBNdkMjVi"
+    #             )
+    #         ]
+    #     )
+    #     buttons.append(
+    #         [
+    #             InlineKeyboardButton(
+    #                 text="☑ ᴊᴏɪɴᴇᴅ ☑", callback_data="check_subscription"
+    #             )
+    #         ]
+    #     )
+
+    #     text = "**Sᴏʀʀʏ, ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴊᴏɪɴ ɪɴ ᴏᴜʀ ᴍᴀɪɴ ᴄʜᴀɴɴᴇʟꜱ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ꜰᴇᴀᴛᴜʀᴇ, ᴩʟᴇᴀꜱᴇ ᴅᴏ ꜱᴏ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ,,... ⚡ .**"
+    #     return await message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(buttons))
         
     if len(channels) > 1:
        for channel in channels:
@@ -177,4 +179,3 @@ async def check_subscription(client, callback_query: CallbackQuery):
         await callback_query.message.edit_text(
             text=text, reply_markup=InlineKeyboardMarkup(buttons)
      )
-
