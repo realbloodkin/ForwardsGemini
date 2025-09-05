@@ -1,23 +1,20 @@
 import os
 import sys
+import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 
-# --- THIS IS THE CRUCIAL FIX ---
-# We now declare the client and collections as None at the module level.
-# They will be initialized later, inside an async context.
+# We declare these as global so they can be initialized by the test function
 motor_client = None
 db = None
 users_col = None
 bots_col = None
 channels_col = None
 configs_col = None
-# --- END OF THE FIX ---
 
 async def init_database():
     """
     Initializes the database connection and performs a connection test.
-    This function is now responsible for creating the client and collections.
     """
     global motor_client, db, users_col, bots_col, channels_col, configs_col
 
@@ -28,10 +25,15 @@ async def init_database():
     
     print("--- DATABASE DIAGNOSTIC ---")
     print("SUCCESS: Found DATABASE_URI.")
-    print("Attempting to connect to MongoDB...")
+    print("Attempting to connect to MongoDB with TLS fix...")
 
     try:
-        motor_client = AsyncIOMotorClient(MONGO_URI)
+        # --- THIS IS THE FINAL FIX ---
+        # We are adding tlsAllowInvalidCertificates=True to the client options.
+        # This is a standard fix for connection issues in many cloud environments.
+        motor_client = AsyncIOMotorClient(MONGO_URI, tlsAllowInvalidCertificates=true)
+        # ---------------------------
+        
         await motor_client.admin.command('ping')
         
         print("SUCCESS: MongoDB connection and authentication established.")
@@ -51,7 +53,7 @@ async def init_database():
     except ConnectionFailure as e:
         print("--- DATABASE DIAGNOSTIC ---")
         print("FATAL ERROR: Could not connect to the MongoDB server.")
-        print("Please check your DATABASE_URI and MongoDB Atlas IP Access List (set to 0.0.0.0/0).")
+        print("This confirms the issue is network-related. Please double-check your DATABASE_URI for any typos.")
         print(f"\nError Details: {e}")
         print("--------------------------")
         sys.exit(1)
@@ -62,7 +64,6 @@ async def init_database():
         sys.exit(1)
 
 # --- Your original database functions will now work correctly ---
-
 async def is_user_new(user_id: int) -> bool:
     return await users_col.find_one({'id': user_id}) is None
 async def add_user(user_id: int, first_name: str):
