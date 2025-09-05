@@ -1,113 +1,227 @@
 import os
 import asyncio
-from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from pyrogram.enums import ChatMemberStatus
+from pyrogram import Client, filters, enums
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ForceReply
 from pyrogram.errors import FloodWait, ChannelInvalid, UsernameNotOccupied, UsernameInvalid, PeerIdInvalid, UserAlreadyParticipant
 
-# --- Environment Variable ---
-# Ensure this is set in your Koyeb service settings.
+# --- Environment Variable & In-Memory Storage ---
 USERBOT_SESSION_STRING = os.environ.get("USERBOT_SESSION_STRING")
+# This dictionary will hold the user's progress through the conversation
+user_context = {}
 
-# --- Constants for the interactive menu ---
-OPTION_LABELS = ["Text", "Photos/Videos", "Audio", "Documents", "Stickers"]
-# Default state: Only "Photos/Videos" and "Documents" are selected (original purpose)
-DEFAULT_STATE = "01010" 
+# --- Helper Functions for Keyboard Generation ---
 
-def create_selection_keyboard(selection_state: str, target_channel_id: str) -> InlineKeyboardMarkup:
-    """Creates the interactive keyboard for selecting message types."""
+def create_range_keyboard(chat_id, start_id=0, stop_id=0):
+    """Creates the menu for setting the message ID range."""
+    start_text = "Latest" if start_id == 0 else f"{start_id}"
+    stop_text = "Oldest" if stop_id == 0 else f"{stop_id}"
+
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"Scan Range: {start_text} ➡️ {stop_text}", callback_data="noop")],
+        [
+            InlineKeyboardButton("Set Start ID", callback_data=f"set_start_{chat_id}_{start_id}_{stop_id}"),
+            InlineKeyboardButton("Set Stop ID", callback_data=f"set_stop_{chat_id}_{start_id}_{stop_id}")
+        ],
+        [InlineKeyboardButton("✅ Continue to Content Selection", callback_data=f"content_select_{chat_id}_{start_id}_{stop_id}")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_full")]
+    ])
+
+def create_content_keyboard(chat_id, start_id, stop_id, selection_state="01010"):
+    """Creates the menu for selecting content types to delete."""
+    OPTION_LABELS = ["Text", "Photos/Videos", "Audio", "Documents", "Stickers"]
     buttons = []
     state_list = list(selection_state)
-
     for i, label in enumerate(OPTION_LABELS):
-        # Add a checkmark if the option is selected
         text = f"✅ {label}" if state_list[i] == '1' else label
-        # The callback data encodes the action, current state, and the index to toggle
-        callback_data = f"toggle_{selection_state}_{i}"
+        callback_data = f"toggle_{selection_state}_{i}_{chat_id}_{start_id}_{stop_id}"
         buttons.append([InlineKeyboardButton(text, callback_data=callback_data)])
     
-    # Action buttons
     buttons.append([
-        InlineKeyboardButton("🚀 Start Scan", callback_data=f"start_{selection_state}_{target_channel_id}"),
-        InlineKeyboardButton("❌ Cancel", callback_data="cancel")
+        InlineKeyboardButton("🚀 Start Scan", callback_data=f"start_{selection_state}_{chat_id}_{start_id}_{stop_id}"),
+        InlineKeyboardButton("❌ Cancel", callback_data="cancel_full")
     ])
     return InlineKeyboardMarkup(buttons)
 
+
+# --- Step 1: Initial Command ---
+
 @Client.on_message(filters.command("unequify") & filters.private)
-async def unequify_start(bot: Client, message: Message):
-    """
-    Initial entry point for the /unequify command.
-    It validates input and presents the interactive selection menu.
-    """
-    if len(message.command) < 2:
-        await message.reply_text(
-            "**Please specify a target channel.**\n\n"
-            "**Usage:** `/unequify [channel_username or chat_id]`"
+async def unequify_command_start(bot: Client, message: Message):
+    """Starts the conversation, logs into the userbot, and lists available chats."""
+    user_id = message.from_user.id
+    if user_id in user_context:
+        await message.reply_text("A previous operation is still in progress. Please cancel it first or wait for it to complete.")
+        return
+
+    status_message = await message.reply_text("`Initializing userbot session...`")
+
+    if not USERBOT_SESSION_STRING:
+        await status_message.edit_text("❌ **Configuration Error!** `USERBOT_SESSION_STRING` is not set.")
+        return
+
+    try:
+        async with Client(name=f"userbot_session_{user_id}", session_string=USERBOT_SESSION_STRING) as userbot:
+            await status_message.edit_text("`Fetching your chat list... This may take a moment.`")
+            
+            chat_list = []
+            async for dialog in userbot.get_dialogs():
+                if dialog.chat.type in [enums.ChatType.CHANNEL, enums.ChatType.SUPERGROUP]:
+                    chat_list.append({"id": dialog.chat.id, "title": dialog.chat.title})
+            
+            if not chat_list:
+                await status_message.edit_text("❌ **No channels or supergroups found** in the userbot's account.")
+                return
+
+            # Store chat list in context for the next step
+            user_context[user_id] = {"step": "awaiting_chat_selection", "chats": chat_list}
+
+            response_text = "**Select a Channel/Supergroup to Clean**\n\nReply with the corresponding number or the full Chat ID:\n\n"
+            for i, chat in enumerate(chat_list, 1):
+                response_text += f"**{i}.** `{chat['title']}`\n   (ID: `{chat['id']}`)\n"
+            
+            await status_message.edit_text(response_text, disable_web_page_preview=True)
+
+    except Exception as e:
+        await status_message.edit_text(f"❌ **An error occurred during userbot login:**\n`{e}`")
+        if user_id in user_context:
+            del user_context[user_id]
+
+
+# --- Step 2: Handle User's Chat Selection & Other Text Inputs ---
+
+@Client.on_message(filters.private & ~filters.command("start"))
+async def handle_conversation(bot: Client, message: Message):
+    """Manages text replies during the conversational setup."""
+    user_id = message.from_user.id
+    context = user_context.get(user_id)
+
+    if not context:
+        return
+
+    # --- Awaiting Chat Selection ---
+    if context.get("step") == "awaiting_chat_selection":
+        try:
+            selection = int(message.text)
+            if 1 <= selection <= len(context["chats"]):
+                # User selected by serial number
+                chat_id = context["chats"][selection - 1]["id"]
+            else:
+                # User might have entered a chat ID directly
+                chat_id = selection
+        except ValueError:
+            await message.reply_text("Invalid input. Please reply with a number or a valid Chat ID.")
+            return
+
+        user_context[user_id] = {"step": "awaiting_range_selection", "chat_id": chat_id}
+        keyboard = create_range_keyboard(chat_id)
+        await message.reply_text(f"Selected chat with ID: `{chat_id}`.\n\nNow, please configure the message scan range.", reply_markup=keyboard)
+
+    # --- Awaiting Start/Stop Message ID ---
+    elif context.get("step") in ["awaiting_start_id", "awaiting_stop_id"]:
+        try:
+            msg_id = int(message.text)
+            if msg_id < 0: raise ValueError
+        except ValueError:
+            await message.reply_text("Invalid Message ID. Please enter a positive number.")
+            return
+
+        chat_id = context["chat_id"]
+        start_id = context.get("start_id", 0)
+        stop_id = context.get("stop_id", 0)
+
+        if context["step"] == "awaiting_start_id":
+            start_id = msg_id
+        else:
+            stop_id = msg_id
+            
+        user_context[user_id] = {"step": "awaiting_range_selection", "chat_id": chat_id, "start_id": start_id, "stop_id": stop_id}
+        keyboard = create_range_keyboard(chat_id, start_id, stop_id)
+        # Find the original message with the keyboard to edit it
+        await bot.edit_message_text(
+            chat_id=user_id,
+            message_id=context["status_message_id"],
+            text=f"Selected chat with ID: `{chat_id}`.\n\nNow, please configure the message scan range.",
+            reply_markup=keyboard
+        )
+
+
+# --- Step 3 & 4: Handle Button Clicks for Range and Content Selection ---
+
+@Client.on_callback_query()
+async def handle_callbacks(bot: Client, cq: CallbackQuery):
+    """Handles all button clicks for the menus."""
+    user_id = cq.from_user.id
+    data = cq.data
+
+    if data == "noop":
+        await cq.answer()
+        return
+
+    if data == "cancel_full":
+        if user_id in user_context:
+            del user_context[user_id]
+        await cq.message.edit_text("Operation cancelled.")
+        return
+        
+    # --- Range Setting Callbacks ---
+    if data.startswith("set_start_") or data.startswith("set_stop_"):
+        _, step, chat_id_str, start_id_str, stop_id_str = data.split("_")
+        user_context[user_id] = {
+            "step": f"awaiting_{step}_id",
+            "chat_id": int(chat_id_str),
+            "start_id": int(start_id_str),
+            "stop_id": int(stop_id_str),
+            "status_message_id": cq.message.id # Store message_id to edit it later
+        }
+        prompt = "start" if step == "start" else "stop"
+        await cq.message.reply_text(f"Please send the **{prompt} message ID**.", reply_markup=ForceReply(selective=True))
+        await cq.answer()
+        return
+
+    # --- Move to Content Selection ---
+    if data.startswith("content_select_"):
+        _, chat_id_str, start_id_str, stop_id_str = data.split("_")
+        keyboard = create_content_keyboard(chat_id_str, start_id_str, stop_id_str)
+        await cq.message.edit_text(
+            "**Select Content Types to Deduplicate**\n\nDefault is files/media.",
+            reply_markup=keyboard
         )
         return
 
-    target_channel_input = message.command[1]
-
-    if not USERBOT_SESSION_STRING:
-        await message.reply_text("❌ **Configuration Error!**\n\nThe `USERBOT_SESSION_STRING` is not set.")
+    # --- Toggle Content Types ---
+    if data.startswith("toggle_"):
+        _, state, index_str, chat_id_str, start_id_str, stop_id_str = data.split("_")
+        index = int(index_str)
+        state_list = list(state)
+        state_list[index] = '1' if state_list[index] == '0' else '0'
+        new_state = "".join(state_list)
+        keyboard = create_content_keyboard(chat_id_str, start_id_str, stop_id_str, new_state)
+        await cq.message.edit_reply_markup(keyboard)
+        await cq.answer()
         return
+        
+    # --- Final Step: Start Scan ---
+    if data.startswith("start_"):
+        await start_deduplication(bot, cq)
 
-    keyboard = create_selection_keyboard(DEFAULT_STATE, target_channel_input)
-    await message.reply_text(
-        "**Welcome to the Advanced Deduplicator!**\n\n"
-        "Please select the types of messages you wish to find duplicates of. "
-        "The original purpose (deleting duplicate files/media) is selected by default.",
-        reply_markup=keyboard
-    )
 
-@Client.on_callback_query(filters.regex("^toggle_"))
-async def toggle_selection(bot: Client, callback_query: CallbackQuery):
-    """Handles clicks on the selection buttons to toggle their state."""
-    _, current_state, index_str = callback_query.data.split("_")
-    index = int(index_str)
+# --- Final Step: The Main Worker Function ---
+
+async def start_deduplication(bot: Client, cq: CallbackQuery):
+    """The main worker function, triggered after all options are set."""
+    user_id = cq.from_user.id
+    status_message = cq.message
+    await status_message.edit_text("`Finalizing settings...`", reply_markup=None)
+
+    _, selection_state, chat_id_str, start_id_str, stop_id_str = cq.data.split("_", 4)
+    target_channel_id = int(chat_id_str)
+    start_message_id = int(start_id_str)
+    stop_message_id = int(stop_id_str)
     
-    # The target channel ID is stored in the "Start" button's callback data
-    start_button_data = callback_query.message.reply_markup.inline_keyboard[-1][0].callback_data
-    target_channel_id = start_button_data.split("_")[-1]
-
-    # Flip the bit at the specified index
-    state_list = list(current_state)
-    state_list[index] = '1' if state_list[index] == '0' else '0'
-    new_state = "".join(state_list)
-
-    # Update the keyboard with the new state
-    new_keyboard = create_selection_keyboard(new_state, target_channel_id)
-    await callback_query.message.edit_reply_markup(new_keyboard)
-    await callback_query.answer() # Acknowledge the button press
-
-@Client.on_callback_query(filters.regex("^cancel"))
-async def cancel_operation(bot: Client, callback_query: CallbackQuery):
-    """Handles the cancel button click."""
-    await callback_query.message.edit_text("Operation cancelled.")
-
-@Client.on_callback_query(filters.regex("^start_"))
-async def start_deduplication(bot: Client, callback_query: CallbackQuery):
-    """
-    The main worker function, triggered after the user clicks "Start Scan".
-    It performs the connection, permission checks, and deduplication logic.
-    """
-    status_message = callback_query.message
-    await status_message.edit_text("`Processing your request...`", reply_markup=None)
-
-    _, selection_state, target_channel_input = callback_query.data.split("_", 2)
-    
-    # Convert numeric chat IDs to integers
-    try:
-        if target_channel_input.startswith("-") and target_channel_input[1:].isdigit():
-            target_channel = int(target_channel_input)
-        else:
-            target_channel = target_channel_input
-    except ValueError:
-        target_channel = target_channel_input
-
     selections = [OPTION_LABELS[i] for i, bit in enumerate(selection_state) if bit == '1']
     if not selections:
         await status_message.edit_text("❌ **No types selected!** Operation cancelled.")
+        if user_id in user_context: del user_context[user_id]
         return
 
     await status_message.edit_text(f"`Initializing userbot session...\n\nTargeting: {', '.join(selections)}`")
@@ -118,56 +232,33 @@ async def start_deduplication(bot: Client, callback_query: CallbackQuery):
     total_deleted = 0
 
     try:
-        async with Client(name="userbot_session", session_string=USERBOT_SESSION_STRING) as userbot:
-            chat = None
-            try:
-                chat = await userbot.get_chat(target_channel)
-            except (PeerIdInvalid, ChannelInvalid, UsernameNotOccupied):
-                await status_message.edit_text("`Direct access failed. Attempting force-join to refresh session...`")
-                await asyncio.sleep(2)
-                try:
-                    await userbot.join_chat(target_channel_input)
-                    await asyncio.sleep(3)
-                    chat = await userbot.get_chat(target_channel)
-                except UserAlreadyParticipant:
-                    await status_message.edit_text("`Already a member. Re-fetching chat data after refresh...`")
-                    await asyncio.sleep(2)
-                    chat = await userbot.get_chat(target_channel)
-                except Exception as join_error:
-                    await status_message.edit_text(f"❌ **Fatal Error!**\n\nFailed to access chat. Please check ID and permissions.\n\n`{join_error}`")
-                    return
-            
-            if not chat:
-                await status_message.edit_text("❌ **Fatal Error!** Could not retrieve chat object after all attempts.")
-                return
-
-            await status_message.edit_text(f"`Successfully accessed: {chat.title}`\n\n`Checking permissions...`")
+        async with Client(name=f"userbot_session_{user_id}", session_string=USERBOT_SESSION_STRING) as userbot:
+            chat = await userbot.get_chat(target_channel_id)
+            await status_message.edit_text(f"`Accessing: {chat.title}`\n\n`Checking permissions...`")
             member = await userbot.get_chat_member(chat.id, "me")
             
-            is_authorized = member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
-            can_delete = member.privileges and member.privileges.can_delete_messages if member.privileges else False
-
-            if not (is_authorized and (member.status == ChatMemberStatus.OWNER or can_delete)):
-                await status_message.edit_text(f"❌ **Permission Denied in '{chat.title}'!** You must be an admin with delete rights or the owner.")
+            if not (member.status in [enums.ChatMemberStatus.OWNER, enums.ChatMemberStatus.ADMINISTRATOR] and (member.status == enums.ChatMemberStatus.OWNER or member.privileges.can_delete_messages)):
+                await status_message.edit_text(f"❌ **Permission Denied in '{chat.title}'!**")
                 return
             
             await status_message.edit_text(f"✅ **Permissions Confirmed!**\n\n`Starting scan...`")
+            
+            # Use offset_id to start from the specified message
+            history_iterator = userbot.get_chat_history(chat.id, offset_id=start_message_id)
 
-            async for msg in userbot.get_chat_history(chat.id):
+            async for msg in history_iterator:
+                if stop_message_id != 0 and msg.id < stop_message_id:
+                    break # Stop if we've reached the older message limit
+
                 total_scanned += 1
                 identifier = None
                 
-                # Dynamic identifier based on user selection
-                if selection_state[0] == '1' and msg.text:
-                    identifier = msg.text.strip()
-                elif selection_state[1] == '1' and (msg.photo or msg.video) and msg.media:
-                    identifier = getattr(msg, msg.media.value).file_unique_id
-                elif selection_state[2] == '1' and msg.audio:
-                    identifier = msg.audio.file_unique_id
-                elif selection_state[3] == '1' and msg.document:
-                    identifier = msg.document.file_unique_id
-                elif selection_state[4] == '1' and msg.sticker:
-                    identifier = msg.sticker.file_unique_id
+                # Dynamic identifier logic
+                if selection_state[0] == '1' and msg.text: identifier = msg.text.strip()
+                elif selection_state[1] == '1' and (msg.photo or msg.video) and msg.media: identifier = getattr(msg, msg.media.value).file_unique_id
+                elif selection_state[2] == '1' and msg.audio: identifier = msg.audio.file_unique_id
+                elif selection_state[3] == '1' and msg.document: identifier = msg.document.file_unique_id
+                elif selection_state[4] == '1' and msg.sticker: identifier = msg.sticker.file_unique_id
 
                 if identifier and identifier in seen_identifiers:
                     duplicates_to_delete.append(msg.id)
@@ -180,7 +271,7 @@ async def start_deduplication(bot: Client, callback_query: CallbackQuery):
                     duplicates_to_delete.clear()
                     await status_message.edit_text(f"⚙️ Scanned: `{total_scanned}` | Deleted: `{total_deleted}`")
                     await asyncio.sleep(5)
-
+            
             if duplicates_to_delete:
                 await userbot.delete_messages(chat_id=chat.id, message_ids=duplicates_to_delete)
                 total_deleted += len(duplicates_to_delete)
@@ -192,7 +283,8 @@ async def start_deduplication(bot: Client, callback_query: CallbackQuery):
                 f"**Duplicates Deleted:** `{total_deleted}`"
             )
 
-    except FloodWait as e:
-        await status_message.edit_text(f"❌ **Rate Limit Exceeded.** Please wait `{e.value}` seconds.")
     except Exception as e:
         await status_message.edit_text(f"❌ **An unexpected error occurred.**\n\n`{e}`")
+    finally:
+        if user_id in user_context:
+            del user_context[user_id] # Clean up context after completion or failure
